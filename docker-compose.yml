@@ -1,7 +1,7 @@
 version: "3"
 services:
   hooker:
-    image: "pmm-dizquetv:latest"
+    image: "tssgery/pmm-dizquetv:latest"
     build:
       context: .
       dockerfile: Dockerfile
