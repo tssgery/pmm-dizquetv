@@ -1,7 +1,5 @@
 #!/bin/bash
 #
-# Copyright (c) 2020 Dell Inc., or its subsidiaries. All Rights Reserved.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +17,7 @@ help:
 	@echo
 	@echo "The following targets are commonly used:"
 	@echo
-	@echo "docker           - Builds the gateway containiner image"
+	@echo "docker           - Builds the container image"
 	@echo "push             - Pushes the built container to a target registry"
 	@echo
 
