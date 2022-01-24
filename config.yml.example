@@ -1,0 +1,11 @@
+---
+plex:
+  url: "INSERT_PLEX_URL_HERE:32400"
+  token: "INSERT_PLEX_TOKEN_HERE"
+dizquetv:
+  url: "INSERT_DIZQUETV_URL_HERE:8000"
+libraries:
+  Movies:
+    dizquetv_start: 100
+  TV Shows:
+    dizquetv_start: 200

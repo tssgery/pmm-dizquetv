@@ -1,0 +1,15 @@
+version: "3"
+services:
+  hooker:
+    image: "pmm-dizquetv:latest"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+
+    volumes:
+      - /home/eric/git/dizquetv-webhook/api:/app
+    ports:
+      - "8000:8000"
+
+
