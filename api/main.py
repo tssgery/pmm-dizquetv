@@ -200,7 +200,7 @@ def dtv_update_programs(number: int, collection: Collection):
     if all_items:
         final_programs = []
         for item in all_items:
-            if item.type == 'movie':
+            if item.type == 'movie' or item.type == 'episode':
                 final_programs.append(item)
             elif item.type == 'show':
                 for episode in item.episodes():
@@ -216,3 +216,7 @@ def dtv_update_programs(number: int, collection: Collection):
         LOGGER.debug("Adding new programs for channel: %d", number)
         chan.add_programs(programs=final_programs,
                           plex_server=plex_server)
+        # sort things randomly
+        LOGGER.debug("Sortng programs randomly")
+        chan.sort_programs_randomly()
+    
