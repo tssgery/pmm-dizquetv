@@ -1,3 +1,8 @@
+"""
+Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
+"""
+
+# pylint: disable=E0401
 
 import logging
 import sys
@@ -44,8 +49,11 @@ APP.add_middleware(
     expose_headers=["*"],
 )
 
-# the class representing the webhook payload we get from PMM
+
 class Collection(BaseModel):        # pylint: disable=too-few-public-methods
+    """
+    Class to encapsulte the payload from Plex-Meta-Manager
+    """
     server_name: Optional[str]
     library_name: Optional[str]
     collection: Optional[str]
@@ -57,9 +65,10 @@ class Collection(BaseModel):        # pylint: disable=too-few-public-methods
     created: Optional[bool]
     deleted: Optional[bool]
 
-# The actual webook, /collection, which gets all collection updates
+
 @APP.post("/collection", status_code=200)
 async def hook(collection: Collection):
+    """The actual webook, /collection, which gets all collection updates"""
 
     # make sure a collection name was provided
     if collection.collection is None:
@@ -104,28 +113,27 @@ async def hook(collection: Collection):
     return Response(status_code=200)
 
 
-# get a channel name from a section and collection name
 def get_channel_name(section: str, name: str):
+    """ get a channel name from a section and collection name """
     return "%s - %s" % (section, name)
 
-#
-# Plex connection
+
 def get_plex_connection():
+    """ get a plex connection """
     plex_url = CONFIG['plex']['url']
     plex_token = CONFIG['plex']['token']
     LOGGER.debug("Connecting to Plex at: %s", plex_url)
     return server.PlexServer(plex_url, plex_token)
 
-#
-# DizqueTV interaction code
 def get_dtv_connection():
+    """ get a dizquetv connection """
     diz_url = CONFIG['dizquetv']['url']
     LOGGER.debug("Connecting to DizqueTV at: %s", diz_url)
     return API(url=diz_url, verbose=VERBOSE)
 
-# get a channel number from a channel name
-# returning a channel of '0' indicates channel does not exist
+
 def dtv_get_channel_number(name: str):
+    """ get a channel number from a channel name, '0' indicates channel does not exis """
     dtv_server = get_dtv_connection()
     for num in dtv_server.channel_numbers:
         this_channel = dtv_server.get_channel(channel_number=num)
@@ -136,8 +144,8 @@ def dtv_get_channel_number(name: str):
     return 0
 
 
-# create a new channel by finding an unused channel number
 def dtv_create_new_channel(name: str, start_at: int):
+    """ create a new channel by finding an unused channel number """
     dtv_server = get_dtv_connection()
 
     LOGGER.debug("Looking for an available channel number, starting at: %d", start_at)
@@ -159,21 +167,21 @@ def dtv_create_new_channel(name: str, start_at: int):
     return lowest
 
 
-# deletes a specified channel, by number
 def dtv_delete_channel(number: int):
+    """ deletes a specified channel, by number """
     dtv_server = get_dtv_connection()
     return dtv_server.delete_channel(channel_number=number)
 
 
-# sets the channel poster
 def dtv_set_poster(number: int, url: str):
+    """ sets the channel poster """
     dtv_server = get_dtv_connection()
     return dtv_server.update_channel(channel_number=number,
                                      icon=url)
 
 
-# update the programming on a channel
 def dtv_update_programs(number: int, collection: Collection):
+    """ update the programming on a channel """
     LOGGER.info("Updating programs for channel: %d", number)
     dtv_server = get_dtv_connection()
     plex_server = get_plex_connection()
