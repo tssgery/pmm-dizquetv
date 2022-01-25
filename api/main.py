@@ -1,32 +1,41 @@
 
 import logging
 import sys
+from typing import Optional
 import yaml
 
+from plexapi import server
 from dizqueTV import API
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from plexapi import server
 from pydantic import BaseModel
-from typing import Optional
 
-# get the logger, we wll use the ivucorn logger to make format consistent
-logger = logging.getLogger("uvicorn.error")
+
+VERBOSE = False
+# get the LOGGER, we wll use the ivucorn LOGGER to make format consistent
+LOGGER = logging.getLogger("uvicorn.error")
 
 with open("/config/config.yml", "r") as f:
-    config = yaml.load(f, Loader=yaml.SafeLoader)
-    logger.info("Read configuration")
-    logger.info("PLEX URL set to: %s" % config['plex']['url'])
-    logger.info("DizqueTV URL set to: %s" % config['dizquetv']['url'])
-    if not config['plex']['token']:
-        logger.error("No PLEX Token is set")
+    CONFIG = yaml.load(f, Loader=yaml.SafeLoader)
+    LOGGER.info("Read configuration")
+    LOGGER.info("PLEX URL set to: %s", CONFIG['plex']['url'])
+    LOGGER.info("DizqueTV URL set to: %s", CONFIG['dizquetv']['url'])
+    if not CONFIG['plex']['token']:
+        LOGGER.error("No PLEX Token is set")
         sys.exit(1)
+    if 'debug' in CONFIG['dizquetv'] and CONFIG['dizquetv']['debug']:
+        LOGGER.info("DEBUG logging is enabled")
+        LOGGER.setLevel(logging.DEBUG)
+        VERBOSE = True
+    else:
+        LOGGER.info("Debug logging is disabled")
+        LOGGER.setLevel(logging.INFO)
 
 # create the API
-app = FastAPI()
+APP = FastAPI()
 
 # allow calls from anywhere
-app.add_middleware(
+APP.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
@@ -36,7 +45,7 @@ app.add_middleware(
 )
 
 # the class representing the webhook payload we get from PMM
-class Collection(BaseModel):
+class Collection(BaseModel):        # pylint: disable=too-few-public-methods
     server_name: Optional[str]
     library_name: Optional[str]
     collection: Optional[str]
@@ -49,47 +58,47 @@ class Collection(BaseModel):
     deleted: Optional[bool]
 
 # The actual webook, /collection, which gets all collection updates
-@app.post("/collection", status_code=200)
-async def create_Deployment(collection: Collection):
+@APP.post("/collection", status_code=200)
+async def hook(collection: Collection):
 
     # make sure a collection name was provided
     if collection.collection is None:
-        logger.error("Null collection name was received")
+        LOGGER.error("Null collection name was received")
         return Response(status_code=400)
 
     # calculate the dizquetv channel name
     channel_name = get_channel_name(
         section=collection.library_name,
         name=collection.collection)
-    logger.info("Channel name: %s" % channel_name)
+    LOGGER.info("Channel name: %s", channel_name)
 
     # get the channel number, will return 0 if no channel exists
     channel = dtv_get_channel_number(channel_name)
-    logger.info("Channel number: %d" % channel)
+    LOGGER.info("Channel number: %d", channel)
 
     # handle collection deletion
     if collection.deleted:
-        logger.debug("Deleting channel (name: %s, number: %s)" % (channel_name, channel))
+        LOGGER.debug("Deleting channel (name: %s, number: %s)", channel_name, channel)
         dtv_delete_channel(channel)
         return Response(status_code=200)
 
     # if the channel does not exist and we were not asked to delete it
     if channel == 0 and not collection.deleted:
         start_at = 1
-        if config['libraries'] and \
-           config['libraries'][collection.library_name] and \
-           config['libraries'][collection.library_name]['dizquetv_start']:
-            start_at = config['libraries'][collection.library_name]['dizquetv_start']
-        logger.debug("Creating channel (name: %s, number: %s)" % (channel_name, channel))
+        if 'libraries' in CONFIG and \
+           collection.library_name in CONFIG['libraries'] and \
+           'dizquetv_start' in CONFIG['libraries'][collection.library_name]:
+            start_at = CONFIG['libraries'][collection.library_name]['dizquetv_start']
+        LOGGER.debug("Creating channel (name: %s, number: %s)", channel_name, channel)
         channel = dtv_create_new_channel(name=channel_name, start_at=start_at)
 
     # now remove the existing content and reset it
-    logger.debug("Updating channel (name: %s, number: %s)" % (channel_name, channel))
+    LOGGER.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
     dtv_update_programs(channel, collection)
 
     # update the poster
     if collection.poster_url:
-        logger.debug("Updating channel %s with poster at %s" % (channel_name, collection.poster_url))
+        LOGGER.debug("Updating channel %s with poster at %s", channel_name, collection.poster_url)
         dtv_set_poster(channel, collection.poster_url)
 
     return Response(status_code=200)
@@ -97,26 +106,32 @@ async def create_Deployment(collection: Collection):
 
 # get a channel name from a section and collection name
 def get_channel_name(section: str, name: str):
-    return("%s - %s" % (section, name))
+    return "%s - %s" % (section, name)
 
 #
 # Plex connection
 def get_plex_connection():
-    return server.PlexServer(config['plex']['url'], config['plex']['token'])
+    plex_url = CONFIG['plex']['url']
+    plex_token = CONFIG['plex']['token']
+    LOGGER.debug("Connecting to Plex at: %s", plex_url)
+    return server.PlexServer(plex_url, plex_token)
 
 #
 # DizqueTV interaction code
 def get_dtv_connection():
-    return API(url=config['dizquetv']['url'], verbose=False)
+    diz_url = CONFIG['dizquetv']['url']
+    LOGGER.debug("Connecting to DizqueTV at: %s", diz_url)
+    return API(url=diz_url, verbose=VERBOSE)
 
 # get a channel number from a channel name
 # returning a channel of '0' indicates channel does not exist
 def dtv_get_channel_number(name: str):
     dtv_server = get_dtv_connection()
     for num in dtv_server.channel_numbers:
-        ch = dtv_server.get_channel(channel_number=num)
-        if ch.name == name:
-            return ch.number
+        this_channel = dtv_server.get_channel(channel_number=num)
+        if this_channel.name == name:
+            LOGGER.debug("Found channel, %d, for name %s", this_channel.number, this_channel.name)
+            return this_channel.number
 
     return 0
 
@@ -125,6 +140,7 @@ def dtv_get_channel_number(name: str):
 def dtv_create_new_channel(name: str, start_at: int):
     dtv_server = get_dtv_connection()
 
+    LOGGER.debug("Looking for an available channel number, starting at: %d", start_at)
     lowest = start_at
     if len(dtv_server.channel_numbers) > 0:
         # build a range of integers that is 1 longer than the number of
@@ -134,6 +150,7 @@ def dtv_create_new_channel(name: str, start_at: int):
         # find the lowest number of the differences in the sets
         lowest = min(set(possible) - set(dtv_server.channel_numbers))
 
+    LOGGER.debug("Lowest available channel number is %d", lowest)
     dtv_server.add_channel(programs=[],
                            number=lowest,
                            name=name,
@@ -157,6 +174,7 @@ def dtv_set_poster(number: int, url: str):
 
 # update the programming on a channel
 def dtv_update_programs(number: int, collection: Collection):
+    LOGGER.info("Updating programs for channel: %d", number)
     dtv_server = get_dtv_connection()
     plex_server = get_plex_connection()
 
@@ -164,15 +182,17 @@ def dtv_update_programs(number: int, collection: Collection):
     chan = dtv_server.get_channel(channel_number=number)
 
     if chan == 0:
+        LOGGER.error("Could not find DizqueTV channel for number: %d", number)
         return
 
     all_items = []
 
     # find all of the shows and movies in the collection
+    LOGGER.debug("Gathering programs for channel")
     found_coll = plex_server.library.section(
         collection.library_name).search(
-        title=collection.collection,
-        libtype='collection')
+            title=collection.collection,
+            libtype='collection')
     if found_coll and len(found_coll) == 1:
         all_items.extend(found_coll[0].items())
 
@@ -184,12 +204,15 @@ def dtv_update_programs(number: int, collection: Collection):
                 final_programs.append(item)
             elif item.type == 'show':
                 for episode in item.episodes():
-                    if (hasattr(episode, "originallyAvailableAt") and episode.originallyAvailableAt) and (
-                            hasattr(episode, "duration") and episode.duration):
+                    if (hasattr(episode, "originallyAvailableAt") and \
+                        episode.originallyAvailableAt) and (
+                                hasattr(episode, "duration") and episode.duration):
                         final_programs.append(episode)
 
         # remove existing content
+        LOGGER.debug("Removing exiting programs from channel: %d", number)
         chan.delete_all_programs()
         # add new content
+        LOGGER.debug("Adding new programs for channel: %d", number)
         chan.add_programs(programs=final_programs,
                           plex_server=plex_server)
