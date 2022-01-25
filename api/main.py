@@ -10,7 +10,7 @@ from plexapi import server
 from pydantic import BaseModel
 from typing import Optional
 
-
+# get the logger, we wll use the ivucorn logger to make format consistent
 logger = logging.getLogger("uvicorn.error")
 
 with open("/config/config.yml", "r") as f:
@@ -22,22 +22,20 @@ with open("/config/config.yml", "r") as f:
         logger.error("No PLEX Token is set")
         sys.exit(1)
 
+# create the API
 app = FastAPI()
 
-origins = [
-    "*",
-]
-
+# allow calls from anywhere
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-
+# the class representing the webhook payload we get from PMM
 class Collection(BaseModel):
     server_name: Optional[str]
     library_name: Optional[str]
@@ -49,9 +47,8 @@ class Collection(BaseModel):
     background_url: Optional[str]
     created: Optional[bool]
     deleted: Optional[bool]
-    changed: Optional[bool]
 
-
+# The actual webook, /collection, which gets all collection updates
 @app.post("/collection", status_code=200)
 async def create_Deployment(collection: Collection):
 
@@ -59,11 +56,6 @@ async def create_Deployment(collection: Collection):
     if collection.collection is None:
         logger.error("Null collection name was received")
         return Response(status_code=400)
-
-    # figure out if the collection is being created, deleted, or changed
-    if (collection.created is None or collection.created == False) and \
-       (collection.deleted == None or collection.deleted == False):
-        collection.changed = True
 
     # calculate the dizquetv channel name
     channel_name = get_channel_name(
