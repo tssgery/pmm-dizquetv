@@ -10,6 +10,7 @@ from typing import Optional
 import yaml
 
 from plexapi import server
+from discordwebhook import Discord
 from dizqueTV import API
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,9 +71,13 @@ class Collection(BaseModel):        # pylint: disable=too-few-public-methods
 async def hook(collection: Collection):
     """The actual webook, /collection, which gets all collection updates"""
 
+    # boolean as to if the channel needed to be created
+    operation = "Updated"
+
     # make sure a collection name was provided
     if collection.collection is None:
         LOGGER.error("Null collection name was received")
+        send_discord("ERROR: Null collection name was received")
         return Response(status_code=400)
 
     # calculate the dizquetv channel name
@@ -89,6 +94,7 @@ async def hook(collection: Collection):
     if collection.deleted:
         LOGGER.debug("Deleting channel (name: %s, number: %s)", channel_name, channel)
         dtv_delete_channel(channel)
+        send_discord("Deleted DizqueTV channel (name: %s, number %d)" % (channel_name, channel))
         return Response(status_code=200)
 
     # if the channel does not exist and we were not asked to delete it
@@ -100,6 +106,7 @@ async def hook(collection: Collection):
             start_at = CONFIG['libraries'][collection.library_name]['dizquetv_start']
         LOGGER.debug("Creating channel (name: %s, number: %s)", channel_name, channel)
         channel = dtv_create_new_channel(name=channel_name, start_at=start_at)
+        operation = "Created"
 
     # now remove the existing content and reset it
     LOGGER.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
@@ -110,6 +117,7 @@ async def hook(collection: Collection):
         LOGGER.debug("Updating channel %s with poster at %s", channel_name, collection.poster_url)
         dtv_set_poster(channel, collection.poster_url)
 
+    send_discord("%s DizqueTV channel (name: %s, number %d)" % (operation, channel_name, channel))
     return Response(status_code=200)
 
 
@@ -227,4 +235,29 @@ def dtv_update_programs(number: int, collection: Collection):
         # sort things randomly
         LOGGER.debug("Sortng programs randomly")
         chan.sort_programs_randomly()
-    
+
+def send_discord(message: str):
+    """ send a discord webhook """
+    if 'discord' not in CONFIG['dizquetv'] or 'url' not in CONFIG['dizquetv']['discord']:
+        LOGGER.debug("Discord webook not set, skipping notification")
+
+    url = CONFIG['dizquetv']['discord']['url']
+    username = 'pmm-dizquetv'
+    if 'username' in CONFIG['dizquetv']['discord']:
+        username = CONFIG['dizquetv']['discord']['username']
+    avatar = 'https://github.com/tssgery/pmm-dizquetv/raw/main/avatar/discord-avatar.png'
+    if 'avatar' in CONFIG['dizquetv']['discord']:
+        avatar = CONFIG['dizquetv']['discord']['avatar']
+
+    LOGGER.debug("Sending Discord webhook")
+    LOGGER.debug("Discord: %s", url)
+    LOGGER.debug("Username: %s", username)
+    LOGGER.debug("Avatar: %s", avatar)
+    LOGGER.debug("Message: %s", message)
+
+    discord = Discord(url=url)
+    discord.post(
+        content=message,
+        username=username,
+        avatar_url=avatar
+    )

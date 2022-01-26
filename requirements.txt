@@ -3,6 +3,7 @@ asgiref==3.4.1
 certifi==2021.10.8
 charset-normalizer==2.0.7
 click==8.0.3
+discordwebhook==1.0.3
 dnspython==2.1.0
 dizquetv==1.5.0.2
 docutils==0.17.1
