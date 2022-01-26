@@ -158,7 +158,7 @@ def dtv_create_new_channel(name: str, start_at: int):
 
     LOGGER.debug("Looking for an available channel number, starting at: %d", start_at)
     lowest = start_at
-    if len(dtv_server.channel_numbers) > 0:
+    if dtv_server.channel_numbers:
         # build a range of integers that is 1 longer than the number of
         # channels
         max_count = len(dtv_server.channel_numbers) + 1
