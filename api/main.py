@@ -250,10 +250,6 @@ def send_discord(message: str):
         avatar = CONFIG['dizquetv']['discord']['avatar']
 
     LOGGER.debug("Sending Discord webhook")
-    LOGGER.debug("Discord: %s", url)
-    LOGGER.debug("Username: %s", username)
-    LOGGER.debug("Avatar: %s", avatar)
-    LOGGER.debug("Message: %s", message)
 
     discord = Discord(url=url)
     discord.post(
