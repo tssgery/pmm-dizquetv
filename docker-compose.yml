@@ -1,15 +1,17 @@
 version: "3"
 services:
-  hooker:
-    image: "tssgery/pmm-dizquetv:latest"
-    build:
-      context: .
-      dockerfile: Dockerfile
-    working_dir: /app
-
+  pmm-dizquetv:
+    container_name: pmm-dizquetv
+    image: tssgery/pmm-dizquetv:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
     volumes:
-      - /home/eric/git/dizquetv-webhook/api:/app
+      - /path/to/pmm-dizquetv/config:/config:ro
+    restart: unless-stopped
     ports:
       - "8000:8000"
+
 
 
