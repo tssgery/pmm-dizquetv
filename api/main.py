@@ -17,25 +17,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
-VERBOSE = False
 # get the LOGGER, we wll use the ivucorn LOGGER to make format consistent
 LOGGER = logging.getLogger("uvicorn.error")
 
-with open("/config/config.yml", "r") as f:
-    CONFIG = yaml.load(f, Loader=yaml.SafeLoader)
-    LOGGER.info("Read configuration")
-    LOGGER.info("PLEX URL set to: %s", CONFIG['plex']['url'])
-    LOGGER.info("DizqueTV URL set to: %s", CONFIG['dizquetv']['url'])
-    if not CONFIG['plex']['token']:
-        LOGGER.error("No PLEX Token is set")
-        sys.exit(1)
-    if 'debug' in CONFIG['dizquetv'] and CONFIG['dizquetv']['debug']:
-        LOGGER.info("DEBUG logging is enabled")
-        LOGGER.setLevel(logging.DEBUG)
-        VERBOSE = True
-    else:
-        LOGGER.info("Debug logging is disabled")
-        LOGGER.setLevel(logging.INFO)
+def get_config():
+    """
+    Get the configuration from the config file
+    """
+    with open("/config/config.yml", "r") as config_file:
+        config = yaml.load(config_file, Loader=yaml.SafeLoader)
+        if 'debug' in config['dizquetv'] and config['dizquetv']['debug']:
+            LOGGER.setLevel(logging.DEBUG)
+        else:
+            LOGGER.setLevel(logging.INFO)
+
+    return config
+
+CONFIG = get_config()
+LOGGER.info("Read configuration")
+LOGGER.info("PLEX URL set to: %s", CONFIG['plex']['url'])
+LOGGER.info("DizqueTV URL set to: %s", CONFIG['dizquetv']['url'])
+if not CONFIG['plex']['token']:
+    LOGGER.error("No PLEX Token is set")
+    sys.exit(1)
 
 # create the API
 APP = FastAPI()
@@ -49,7 +53,6 @@ APP.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
-
 
 class Collection(BaseModel):        # pylint: disable=too-few-public-methods
     """
@@ -71,13 +74,15 @@ class Collection(BaseModel):        # pylint: disable=too-few-public-methods
 async def hook(collection: Collection):
     """The actual webook, /collection, which gets all collection updates"""
 
+    config = get_config()
+
     # boolean as to if the channel needed to be created
     operation = "Updated"
 
     # make sure a collection name was provided
     if collection.collection is None:
         LOGGER.error("Null collection name was received")
-        send_discord("ERROR: Null collection name was received")
+        send_discord(config=config, message="ERROR: Null collection name was received")
         return Response(status_code=400)
 
     col_name = collection.collection
@@ -90,46 +95,50 @@ async def hook(collection: Collection):
     LOGGER.info("Channel name: %s", channel_name)
 
     # get the channel number, will return 0 if no channel exists
-    channel = dtv_get_channel_number(channel_name)
+    channel = dtv_get_channel_number(config=config, name=channel_name)
     LOGGER.info("Channel number: %d", channel)
 
     # handle collection deletion
     if collection.deleted:
         LOGGER.debug("Deleting channel (name: %s, number: %s)", channel_name, channel)
-        dtv_delete_channel(channel)
-        send_discord("Deleted DizqueTV channel (name: %s, number %d)" % (channel_name, channel))
+        dtv_delete_channel(config=config, number=channel)
+        send_discord(config=config,
+                     message="Deleted DizqueTV channel (name: %s, number %d)" % \
+                     (channel_name, channel))
         return Response(status_code=200)
 
     # if the channel does not exist and we were not asked to delete it
     if channel == 0 and not collection.deleted:
         start_at = 1
-        if 'libraries' in CONFIG and \
-           collection.library_name in CONFIG['libraries'] and \
-           'dizquetv_start' in CONFIG['libraries'][collection.library_name]:
-            start_at = CONFIG['libraries'][collection.library_name]['dizquetv_start']
+        if 'libraries' in config and \
+           collection.library_name in config['libraries'] and \
+           'dizquetv_start' in config['libraries'][collection.library_name]:
+            start_at = config['libraries'][collection.library_name]['dizquetv_start']
         LOGGER.debug("Creating channel (name: %s, number: %s)", channel_name, channel)
-        channel = dtv_create_new_channel(name=channel_name, start_at=start_at)
+        channel = dtv_create_new_channel(config=config, name=channel_name, start_at=start_at)
         operation = "Created"
 
     # determine if the channel contents should be randomized
     randomize = True
-    if 'libraries' in CONFIG and \
-        col_section in CONFIG['libraries'] and \
-        col_name in CONFIG['libraries'][col_section] and \
-        'random' in CONFIG['libraries'][col_section][col_name] and \
-        not CONFIG['libraries'][col_section][col_name]['random']:
+    if 'libraries' in config and \
+        col_section in config['libraries'] and \
+        col_name in config['libraries'][col_section] and \
+        'random' in config['libraries'][col_section][col_name] and \
+        not config['libraries'][col_section][col_name]['random']:
         randomize = False
 
     # now remove the existing content and reset it
     LOGGER.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
-    dtv_update_programs(number=channel, collection=collection, randomize=randomize)
+    dtv_update_programs(number=channel, collection=collection, config=config, randomize=randomize)
 
     # update the poster
     if collection.poster_url:
         LOGGER.debug("Updating channel %s with poster at %s", channel_name, collection.poster_url)
-        dtv_set_poster(channel, collection.poster_url)
+        dtv_set_poster(config=config, number=channel, url=collection.poster_url)
 
-    send_discord("%s DizqueTV channel (name: %s, number %d)" % (operation, channel_name, channel))
+    send_discord(config=config,
+                 message="%s DizqueTV channel (name: %s, number %d)" % \
+                 (operation, channel_name, channel))
     return Response(status_code=200)
 
 
@@ -138,23 +147,24 @@ def get_channel_name(section: str, name: str):
     return "%s - %s" % (section, name)
 
 
-def get_plex_connection():
+def get_plex_connection(config: dict):
     """ get a plex connection """
-    plex_url = CONFIG['plex']['url']
-    plex_token = CONFIG['plex']['token']
+    plex_url = config['plex']['url']
+    plex_token = config['plex']['token']
     LOGGER.debug("Connecting to Plex at: %s", plex_url)
     return server.PlexServer(plex_url, plex_token)
 
-def get_dtv_connection():
+
+def get_dtv_connection(config: dict):
     """ get a dizquetv connection """
-    diz_url = CONFIG['dizquetv']['url']
+    diz_url = config['dizquetv']['url']
     LOGGER.debug("Connecting to DizqueTV at: %s", diz_url)
-    return API(url=diz_url, verbose=VERBOSE)
+    return API(url=diz_url, verbose=False)
 
 
-def dtv_get_channel_number(name: str):
+def dtv_get_channel_number(config: dict, name: str):
     """ get a channel number from a channel name, '0' indicates channel does not exis """
-    dtv_server = get_dtv_connection()
+    dtv_server = get_dtv_connection(config)
     for num in dtv_server.channel_numbers:
         this_channel = dtv_server.get_channel(channel_number=num)
         if this_channel.name == name:
@@ -164,9 +174,9 @@ def dtv_get_channel_number(name: str):
     return 0
 
 
-def dtv_create_new_channel(name: str, start_at: int):
+def dtv_create_new_channel(config: dict, name: str, start_at: int):
     """ create a new channel by finding an unused channel number """
-    dtv_server = get_dtv_connection()
+    dtv_server = get_dtv_connection(config)
 
     LOGGER.debug("Looking for an available channel number, starting at: %d", start_at)
     lowest = start_at
@@ -187,24 +197,24 @@ def dtv_create_new_channel(name: str, start_at: int):
     return lowest
 
 
-def dtv_delete_channel(number: int):
+def dtv_delete_channel(config: dict, number: int):
     """ deletes a specified channel, by number """
-    dtv_server = get_dtv_connection()
+    dtv_server = get_dtv_connection(config=config)
     return dtv_server.delete_channel(channel_number=number)
 
 
-def dtv_set_poster(number: int, url: str):
+def dtv_set_poster(config: dict, number: int, url: str):
     """ sets the channel poster """
-    dtv_server = get_dtv_connection()
+    dtv_server = get_dtv_connection(config=config)
     return dtv_server.update_channel(channel_number=number,
                                      icon=url)
 
 
-def dtv_update_programs(number: int, collection: Collection, randomize: bool = True):
+def dtv_update_programs(config: dict, number: int, collection: Collection, randomize: bool = True):
     """ update the programming on a channel """
     LOGGER.info("Updating programs for channel: %d", number)
-    dtv_server = get_dtv_connection()
-    plex_server = get_plex_connection()
+    dtv_server = get_dtv_connection(config=config)
+    plex_server = get_plex_connection(config=config)
 
     # get the channel object
     chan = dtv_server.get_channel(channel_number=number)
@@ -252,18 +262,18 @@ def dtv_update_programs(number: int, collection: Collection, randomize: bool = T
         else:
             LOGGER.debug("Skipping the randmize of programs per config")
 
-def send_discord(message: str):
+def send_discord(config: dict, message: str):
     """ send a discord webhook """
-    if 'discord' not in CONFIG['dizquetv'] or 'url' not in CONFIG['dizquetv']['discord']:
+    if 'discord' not in config['dizquetv'] or 'url' not in config['dizquetv']['discord']:
         LOGGER.debug("Discord webook not set, skipping notification")
 
-    url = CONFIG['dizquetv']['discord']['url']
+    url = config['dizquetv']['discord']['url']
     username = 'pmm-dizquetv'
-    if 'username' in CONFIG['dizquetv']['discord']:
-        username = CONFIG['dizquetv']['discord']['username']
+    if 'username' in config['dizquetv']['discord']:
+        username = config['dizquetv']['discord']['username']
     avatar = 'https://github.com/tssgery/pmm-dizquetv/raw/main/avatar/discord-avatar.png'
-    if 'avatar' in CONFIG['dizquetv']['discord']:
-        avatar = CONFIG['dizquetv']['discord']['avatar']
+    if 'avatar' in config['dizquetv']['discord']:
+        avatar = config['dizquetv']['discord']['avatar']
 
     LOGGER.debug("Sending Discord webhook")
 
