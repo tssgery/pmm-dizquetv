@@ -80,10 +80,13 @@ async def hook(collection: Collection):
         send_discord("ERROR: Null collection name was received")
         return Response(status_code=400)
 
+    col_name = collection.collection
+    col_section = collection.library_name
+
     # calculate the dizquetv channel name
     channel_name = get_channel_name(
-        section=collection.library_name,
-        name=collection.collection)
+        section=col_section,
+        name=col_name)
     LOGGER.info("Channel name: %s", channel_name)
 
     # get the channel number, will return 0 if no channel exists
@@ -108,9 +111,18 @@ async def hook(collection: Collection):
         channel = dtv_create_new_channel(name=channel_name, start_at=start_at)
         operation = "Created"
 
+    # determine if the channel contents should be randomized
+    randomize = True
+    if 'libraries' in CONFIG and \
+        col_section in CONFIG['libraries'] and \
+        col_name in CONFIG['libraries'][col_section] and \
+        'random' in CONFIG['libraries'][col_section][col_name] and \
+        not CONFIG['libraries'][col_section][col_name]['random']:
+        randomize = False
+
     # now remove the existing content and reset it
     LOGGER.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
-    dtv_update_programs(channel, collection)
+    dtv_update_programs(number=channel, collection=collection, randomize=randomize)
 
     # update the poster
     if collection.poster_url:
@@ -188,7 +200,7 @@ def dtv_set_poster(number: int, url: str):
                                      icon=url)
 
 
-def dtv_update_programs(number: int, collection: Collection):
+def dtv_update_programs(number: int, collection: Collection, randomize: bool = True):
     """ update the programming on a channel """
     LOGGER.info("Updating programs for channel: %d", number)
     dtv_server = get_dtv_connection()
@@ -232,9 +244,13 @@ def dtv_update_programs(number: int, collection: Collection):
         LOGGER.debug("Adding new programs for channel: %d", number)
         chan.add_programs(programs=final_programs,
                           plex_server=plex_server)
+
         # sort things randomly
-        LOGGER.debug("Sortng programs randomly")
-        chan.sort_programs_randomly()
+        if randomize:
+            LOGGER.debug("Sortng programs randomly")
+            chan.sort_programs_randomly()
+        else:
+            LOGGER.debug("Skipping the randmize of programs per config")
 
 def send_discord(message: str):
     """ send a discord webhook """

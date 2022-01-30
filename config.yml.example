@@ -14,3 +14,7 @@ libraries:
     dizquetv_start: 100
   TV Shows:
     dizquetv_start: 200
+    Friends:
+      random: false
+    Lost: 
+      random: false
