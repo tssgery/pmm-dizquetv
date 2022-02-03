@@ -235,6 +235,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
         all_items.extend(found_coll[0].items())
 
     # build list of programs (movies and episodes)
+    total_minutes = 0
     if all_items:
         final_programs = []
         for item in all_items:
@@ -247,6 +248,14 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
                                 hasattr(episode, "duration") and episode.duration):
                         final_programs.append(episode)
 
+        # calculate the total duration of the programs
+        for prog in final_programs:
+            if (hasattr(prog, "duration") and prog.duration):
+                total_minutes += (prog.duration/60000)
+
+        # make sure the channel will play for at least a month (31 days)
+        times_to_repeat = int((31*24*60)/total_minutes) + 1
+
         # remove existing content
         LOGGER.debug("Removing exiting programs from channel: %d", number)
         chan.delete_all_programs()
@@ -255,12 +264,16 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
         chan.add_programs(programs=final_programs,
                           plex_server=plex_server)
 
+        LOGGER.debug("Setting replicate count to %d", times_to_repeat)
         # sort things randomly
         if randomize:
             LOGGER.debug("Sortng programs randomly")
             chan.sort_programs_randomly()
+            chan.replicate_and_shuffle(how_many_times=times_to_repeat)
         else:
             LOGGER.debug("Skipping the randmize of programs per config")
+            chan.replicate(how_many_times=times_to_repeat)
+
 
 def send_discord(config: dict, message: str):
     """ send a discord webhook """
