@@ -3,6 +3,8 @@ Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
 """
 
 # pylint: disable=E0401
+# pylint: disable=R0912
+# pylint: disable=R0914
 
 import logging
 import sys
@@ -17,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
-# get the LOGGER, we wll use the ivucorn LOGGER to make format consistent
+# get the LOGGER, we wll use the uvicorn LOGGER to make format consistent
 LOGGER = logging.getLogger("uvicorn.error")
 
 def get_config():
@@ -264,6 +266,19 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
         chan.add_programs(programs=final_programs,
                           plex_server=plex_server)
 
+        # add fillers if requested
+        chan.delete_all_filler_lists()
+        fillers = get_filler_lists(config=config,
+                                   col_section=collection.library_name,
+                                   col_name=collection.collection)
+        for a_filler in fillers:
+            LOGGER.debug("Adding Filler List: %s", a_filler)
+            filler_list = dtv_server.get_filler_list_by_name(a_filler)
+            if filler_list:
+                chan.add_filler_list(filler_list=filler_list)
+            else:
+                LOGGER.debug("Unable to find Filler List: %s", a_filler)
+
         LOGGER.debug("Setting replicate count to %d", times_to_repeat)
         # sort things randomly
         if randomize:
@@ -274,6 +289,49 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
             LOGGER.debug("Skipping the randmize of programs per config")
             chan.replicate(how_many_times=times_to_repeat)
 
+        # set padding if requested
+        pad = get_pad_time(config=config,
+                           col_section=collection.library_name,
+                           col_name=collection.collection)
+        if pad and pad != 0:
+            LOGGER.debug("Setting time padding to %d minutes", pad)
+            chan.pad_times(start_every_x_minutes=pad)
+        else:
+            LOGGER.debug("Padding is disabled")
+
+def get_pad_time(config: dict, col_section: str, col_name: str):
+    """ Gets the padding time for the channel """
+    # Look for pad setting in specific Channel
+    if 'libraries' in config and \
+        col_section in config['libraries'] and \
+        col_name in config['libraries'][col_section] and \
+        'pad' in config['libraries'][col_section][col_name]:
+        return config['libraries'][col_section][col_name]['pad']
+
+    # Not found, look for default pad setting
+    if 'defaults' in config and \
+        col_section in config['defaults'] and \
+        'pad' in config['defaults'][col_section]:
+        return config['defaults'][col_section]['pad']
+
+    return None
+
+def get_filler_lists(config: dict, col_section: str, col_name: str):
+    """ Gets the names of the filler lists """
+    # Look for fillers setting in specific Channel
+    if 'libraries' in config and \
+        col_section in config['libraries'] and \
+        col_name in config['libraries'][col_section] and \
+        'fillers' in config['libraries'][col_section][col_name]:
+        return config['libraries'][col_section][col_name]['fillers']
+
+    # Not found, look for default fillers setting
+    if 'defaults' in config and \
+        col_section in config['defaults'] and \
+        'fillers' in config['defaults'][col_section]:
+        return config['defaults'][col_section]['fillers']
+
+    return []
 
 def send_discord(config: dict, message: str):
     """ send a discord webhook """

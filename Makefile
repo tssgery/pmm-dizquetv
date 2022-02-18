@@ -9,7 +9,11 @@
 export BUILDER=docker
 export REGISTRY=tssgery
 export IMAGENAME=pmm-dizquetv
+
+ifeq ($(IMAGETAG),)
 export IMAGETAG=latest
+endif
+
 
 
 # Help target, prints usefule information

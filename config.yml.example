@@ -9,12 +9,26 @@ dizquetv:
     url: "INSERT_DISCORD_WEBHOOK_URL_HERE"
     username: "pmm-dizquetv"
     avatar: "https://github.com/tssgery/pmm-dizquetv/raw/main/avatar/discord-avatar.png"
+defaults:
+  Movies:
+    pad: 10
+    fillers:
+      - Trailers
+  TV Shows:
+    pad: 5
+    fillers:
+      - Commercials
 libraries:
   Movies:
     dizquetv_start: 100
+    Pixar:
+      pad: 5
+      fillers:
+        - Kid Safe Trailers
   TV Shows:
     dizquetv_start: 200
     Friends:
       random: false
+      pad: 2
     Lost: 
       random: false
