@@ -56,6 +56,27 @@ APP.add_middleware(
     expose_headers=["*"],
 )
 
+class StartRun(BaseModel):        # pylint: disable=too-few-public-methods
+    """
+    Class to encapsulte the payload from Plex-Meta-Manager
+    """
+    start_time: Optional[str]
+
+class EndRun(BaseModel):        # pylint: disable=too-few-public-methods
+    """
+    Class to encapsulte the payload from Plex-Meta-Manager
+    """
+    start_time: Optional[str]
+    end_time: Optional[str]
+    run_time: Optional[str]
+    collections_created: Optional[int]
+    collections_modified: Optional[int]
+    collections_deleted: Optional[int]
+    items_added: Optional[int]
+    items_removesd: Optional[int]
+    added_to_radarr: Optional[int]
+    added_to_sonarr: Optional[int]
+
 class Collection(BaseModel):        # pylint: disable=too-few-public-methods
     """
     Class to encapsulte the payload from Plex-Meta-Manager
@@ -71,9 +92,20 @@ class Collection(BaseModel):        # pylint: disable=too-few-public-methods
     created: Optional[bool]
     deleted: Optional[bool]
 
+@APP.post("/start", status_code=200)
+def hook_start(start_time: StartRun):
+    """ Webhook for when a PMM run starts """
+    LOGGER.info("PMM Run started at: %s", start_time.start_time)
+    return Response(status_code=200)
+
+@APP.post("/end", status_code=200)
+def hook_end(end_time: EndRun):
+    """ Webhook for when a PMM run ends """
+    LOGGER.info("PMM Run ended at: %s", end_time.end_time)
+    return Response(status_code=200)
 
 @APP.post("/collection", status_code=200)
-async def hook(collection: Collection):
+def hook_update(collection: Collection):
     """The actual webook, /collection, which gets all collection updates"""
 
     config = get_config()
@@ -121,13 +153,8 @@ async def hook(collection: Collection):
         operation = "Created"
 
     # determine if the channel contents should be randomized
-    randomize = True
-    if 'libraries' in config and \
-        col_section in config['libraries'] and \
-        col_name in config['libraries'][col_section] and \
-        'random' in config['libraries'][col_section][col_name] and \
-        not config['libraries'][col_section][col_name]['random']:
-        randomize = False
+    randomize = get_random(col_section=col_section,
+                           col_name=col_name)
 
     # now remove the existing content and reset it
     LOGGER.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
@@ -268,8 +295,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
 
         # add fillers if requested
         chan.delete_all_filler_lists()
-        fillers = get_filler_lists(config=config,
-                                   col_section=collection.library_name,
+        fillers = get_filler_lists(col_section=collection.library_name,
                                    col_name=collection.collection)
         for a_filler in fillers:
             LOGGER.debug("Adding Filler List: %s", a_filler)
@@ -290,8 +316,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
             chan.replicate(how_many_times=times_to_repeat)
 
         # set padding if requested
-        pad = get_pad_time(config=config,
-                           col_section=collection.library_name,
+        pad = get_pad_time(col_section=collection.library_name,
                            col_name=collection.collection)
         if pad and pad != 0:
             LOGGER.debug("Setting time padding to %d minutes", pad)
@@ -299,39 +324,38 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
         else:
             LOGGER.debug("Padding is disabled")
 
-def get_pad_time(config: dict, col_section: str, col_name: str):
+def get_pad_time(col_section: str, col_name: str):
     """ Gets the padding time for the channel """
-    # Look for pad setting in specific Channel
-    if 'libraries' in config and \
-        col_section in config['libraries'] and \
-        col_name in config['libraries'][col_section] and \
-        'pad' in config['libraries'][col_section][col_name]:
-        return config['libraries'][col_section][col_name]['pad']
+    config = get_collection_config(col_section, col_name)
 
-    # Not found, look for default pad setting
-    if 'defaults' in config and \
-        col_section in config['defaults'] and \
-        'pad' in config['defaults'][col_section]:
-        return config['defaults'][col_section]['pad']
+    # Look for pad setting
+    if 'pad' in config:
+        return config['pad']
 
+    # nothing was found
     return None
 
-def get_filler_lists(config: dict, col_section: str, col_name: str):
+def get_filler_lists(col_section: str, col_name: str):
     """ Gets the names of the filler lists """
+    config = get_collection_config(col_section, col_name)
+
     # Look for fillers setting in specific Channel
-    if 'libraries' in config and \
-        col_section in config['libraries'] and \
-        col_name in config['libraries'][col_section] and \
-        'fillers' in config['libraries'][col_section][col_name]:
-        return config['libraries'][col_section][col_name]['fillers']
+    if 'fillers' in config:
+        return config['fillers']
 
-    # Not found, look for default fillers setting
-    if 'defaults' in config and \
-        col_section in config['defaults'] and \
-        'fillers' in config['defaults'][col_section]:
-        return config['defaults'][col_section]['fillers']
-
+    # nothing was found
     return []
+
+def get_random(col_section: str, col_name: str, default: bool = True):
+    """ Gets the randomize setting """
+    config = get_collection_config(col_section, col_name)
+
+    # Look for fillers setting in specific Channel
+    if 'random' in config:
+        return config['random'].lower() == 'true'.lower()
+
+    # nothing was found
+    return default
 
 def send_discord(config: dict, message: str):
     """ send a discord webhook """
@@ -354,3 +378,24 @@ def send_discord(config: dict, message: str):
         username=username,
         avatar_url=avatar
     )
+
+def get_collection_config(col_section: str, col_name: str):
+    """ Gets the configuration for a specific collection """
+    config = get_config()
+    default_config = {}
+    collection_config = {}
+
+    # Look for default values
+    if 'defaults' in config and \
+        col_section in config['defaults']:
+        default_config = config['defaults'][col_section]
+
+    # Not found, look for default fillers setting
+    if 'libraries' in config and \
+        col_section in config['libraries'] and \
+        col_name in config['libraries'][col_section]:
+        collection_config = config['libraries'][col_section][col_name]
+
+    default_config.update(collection_config)
+
+    return default_config
