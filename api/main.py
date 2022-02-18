@@ -352,7 +352,7 @@ def get_random(col_section: str, col_name: str, default: bool = True):
 
     # Look for fillers setting in specific Channel
     if 'random' in config:
-        return config['random'].lower() == 'true'.lower()
+        return config['random']
 
     # nothing was found
     return default
