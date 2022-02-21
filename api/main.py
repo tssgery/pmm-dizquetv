@@ -393,11 +393,17 @@ def get_collection_config(col_section: str, col_name: str):
         col_section in config['defaults']:
         default_config = config['defaults'][col_section]
 
+    if not default_config:
+        default_config = {}
+
     # Not found, look for default fillers setting
     if 'libraries' in config and \
         col_section in config['libraries'] and \
         col_name in config['libraries'][col_section]:
         collection_config = config['libraries'][col_section][col_name]
+
+    if not collection_config:
+        collection_config = {}
 
     default_config.update(collection_config)
 
