@@ -7,6 +7,7 @@ Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
 # pylint: disable=R0914
 
 import logging
+from pprint import pformat
 import sys
 from typing import Optional
 import yaml
@@ -107,6 +108,8 @@ def hook_end(end_time: EndRun):
 @APP.post("/collection", status_code=200)
 def hook_update(collection: Collection):
     """The actual webook, /collection, which gets all collection updates"""
+
+    LOGGER.debug(pformat(collection))
 
     config = get_config()
 
