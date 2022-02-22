@@ -11,7 +11,7 @@ export REGISTRY=tssgery
 export IMAGENAME=pmm-dizquetv
 
 ifeq ($(IMAGETAG),)
-export IMAGETAG=latest
+export IMAGETAG=testing
 endif
 
 
