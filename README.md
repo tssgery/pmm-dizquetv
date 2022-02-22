@@ -25,13 +25,29 @@ dizquetv:
     url: "INSERT_DISCORD_WEBHOOK_URL_HERE"
     username: "pmm-dizquetv"
     avatar: "https://github.com/tssgery/pmm-dizquetv/raw/main/avatar/discord-avatar.png"
+defaults:
+  Movies:
+    pad: 10
+    fillers:
+      - Trailers
+  TV Shows:
+    pad: 5
+    minimum_days: 7
+    fillers:
+      - Commercials
 libraries:
   Movies:
     dizquetv_start: 100
+    Pixar:
+      pad: 5
+      fillers:
+        - Kid Safe Trailers
   TV Shows:
     dizquetv_start: 200
     Friends:
+      minimum_days: 31
       random: false
+      pad: 2
     Lost: 
       random: false
 ```
@@ -51,18 +67,31 @@ such as
 |         |          `username`: Username for discord, `pmm-dizquetv` is default |
 |         |          `avatar`: url of the avatar to display in Discord           |
 
+#### defaults
+The `defaults` section allows for overriding the default values for each `library`
+
+| value            | setting                                                                                        |
+|------------------|------------------------------------------------------------------------------------------------|
+| `library`        | Allows for customizing the defaults the specified library.                                     |
+|                  |      `random`: randomize the programs within the channel. Default is `true`                    |   
+|                  |      `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
+|                  |      `fillers`: a list of filler Lists already defined within DizqueTV                         |
+
+
 #### libraries
 The `libraries` section is not required but allows the override of default behaviour. 
 
 The children of the `libraries` section are the section names within Plex, and within those sections,
 the following can be defined:
 
-| value            | setting                                                                                    |
-|------------------|--------------------------------------------------------------------------------------------|
-| dizquetv_start   | Starting channel number within DizqueTV. By default the first unused number will be used.  |
-|                  |      If set, pmm-dizquetv will use the first unused number, greater than or equal to this. |
-| collection       | Allows for customizing the channel configuration for the specified collection.             |
-|                  |      `random`: randomize the programs within the channel. Default is `true`                |   
+| value            | setting                                                                                        |
+|------------------|------------------------------------------------------------------------------------------------|
+| dizquetv_start   | Starting channel number within DizqueTV. By default the first unused number will be used.      |
+|                  |      If set, pmm-dizquetv will use the first unused number, greater than or equal to this.     |
+| `collection`     | Allows for customizing the channel configuration for the specified collection.                 |
+|                  |      `random`: randomize the programs within the channel. Default is `true`                    |   
+|                  |      `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
+|                  |      `fillers`: a list of filler Lists already defined within DizqueTV                         |
 
 
 ### docker-compose
@@ -98,7 +127,4 @@ webhooks:
   changes:
     - notifiarr
     - http://pmm-dizquetv:8000/collection
-```
-
-
-
+```lint

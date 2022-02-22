@@ -16,6 +16,7 @@ defaults:
       - Trailers
   TV Shows:
     pad: 5
+    minimum_days: 7
     fillers:
       - Commercials
 libraries:
@@ -28,6 +29,7 @@ libraries:
   TV Shows:
     dizquetv_start: 200
     Friends:
+      minimum_days: 31
       random: false
       pad: 2
     Lost: 

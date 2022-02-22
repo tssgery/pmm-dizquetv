@@ -285,8 +285,10 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
             if (hasattr(prog, "duration") and prog.duration):
                 total_minutes += (prog.duration/60000)
 
-        # make sure the channel will play for at least a month (31 days)
-        times_to_repeat = int((31*24*60)/total_minutes) + 1
+        # make sure the channel will play for at least a number of days
+        min_days = get_minimum_days(col_section=collection.library_name,
+                                    col_name=collection.collection)
+        times_to_repeat = int((min_days*24*60)/total_minutes) + 1
 
         # remove existing content
         LOGGER.debug("Removing exiting programs from channel: %d", number)
@@ -356,6 +358,17 @@ def get_random(col_section: str, col_name: str, default: bool = True):
     # Look for fillers setting in specific Channel
     if 'random' in config:
         return config['random']
+
+    # nothing was found
+    return default
+
+def get_minimum_days(col_section: str, col_name: str, default: int = 0):
+    """ Gets the randomize setting """
+    config = get_collection_config(col_section, col_name)
+
+    # Look for minimum_days setting in specific Channel
+    if 'minimum_days' in config:
+        return config['minimum_days']
 
     # nothing was found
     return default
