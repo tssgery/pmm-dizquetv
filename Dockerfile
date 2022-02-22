@@ -16,7 +16,7 @@ RUN mkdir /app && \
 RUN mkdir /config && \
     chmod -R 777 /config
 
-ADD api/main.py /app
+ADD api/*.py /app/
 
 # copy in the start script
 ADD start /start

@@ -7,11 +7,9 @@ Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
 # pylint: disable=R0914
 # pylint: disable=R0915
 
-import logging
 from pprint import pformat
 import sys
 from typing import Optional
-import yaml
 
 from plexapi import server
 from discordwebhook import Discord
@@ -20,50 +18,8 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-
-LOGGING_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "()": "logging.Formatter",
-            "fmt": "{asctime} - {levelname:<6s} | {message}",
-            "style": "{"
-        },
-    },
-    "handlers": {
-        "default": {
-            "formatter": "default",
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stderr",
-        },
-    },
-    "loggers": {
-        "": {"handlers": ["default"]},
-    },
-}
-
-def get_logger():
-    """
-    Get the logger
-    """
-    # get the LOGGER, we wll use the uvicorn LOGGER to make format consistent
-    logger = logging.getLogger("default")
-    return logger
-
-def get_config():
-    """
-    Get the configuration from the config file
-    """
-    logger = get_logger()
-    with open("/config/config.yml", "r") as config_file:
-        config = yaml.load(config_file, Loader=yaml.SafeLoader)
-        if 'debug' in config['dizquetv'] and config['dizquetv']['debug']:
-            logger.setLevel(logging.DEBUG)
-        else:
-            logger.setLevel(logging.INFO)
-
-    return config
+import pmmdtv_config
+import pmmdtv_logger
 
 # create the API
 APP = FastAPI()
@@ -120,8 +76,8 @@ async def startup_event():
     """
     APP initialization code
     """
-    config = get_config()
-    logger = get_logger()
+    config = pmmdtv_config.get_config()
+    logger = pmmdtv_logger.get_logger()
     logger.info("Read configuration")
     logger.info("PLEX URL set to: %s", config['plex']['url'])
     logger.info("DizqueTV URL set to: %s", config['dizquetv']['url'])
@@ -132,24 +88,24 @@ async def startup_event():
 @APP.post("/start", status_code=200)
 def hook_start(start_time: StartRun):
     """ Webhook for when a PMM run starts """
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     logger.info("PMM Run started at: %s", start_time.start_time)
     return Response(status_code=200)
 
 @APP.post("/end", status_code=200)
 def hook_end(end_time: EndRun):
     """ Webhook for when a PMM run ends """
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     logger.info("PMM Run ended at: %s", end_time.end_time)
     return Response(status_code=200)
 
 @APP.post("/collection", status_code=200)
 def hook_update(collection: Collection):
     """The actual webook, /collection, which gets all collection updates"""
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     logger.debug(pformat(collection))
 
-    config = get_config()
+    config = pmmdtv_config.get_config()
 
     # boolean as to if the channel needed to be created
     operation = "Updated"
@@ -194,8 +150,8 @@ def hook_update(collection: Collection):
         operation = "Created"
 
     # determine if the channel contents should be randomized
-    randomize = get_random(col_section=col_section,
-                           col_name=col_name)
+    randomize = pmmdtv_config.get_random(col_section=col_section,
+                                         col_name=col_name)
 
     # now remove the existing content and reset it
     logger.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
@@ -221,7 +177,7 @@ def get_plex_connection(config: dict):
     """ get a plex connection """
     plex_url = config['plex']['url']
     plex_token = config['plex']['token']
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     logger.debug("Connecting to Plex at: %s", plex_url)
     return server.PlexServer(plex_url, plex_token)
 
@@ -229,15 +185,15 @@ def get_plex_connection(config: dict):
 def get_dtv_connection(config: dict):
     """ get a dizquetv connection """
     diz_url = config['dizquetv']['url']
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     logger.debug("Connecting to DizqueTV at: %s", diz_url)
     return API(url=diz_url, verbose=False)
 
 
 def dtv_get_channel_number(config: dict, name: str):
-    """ get a channel number from a channel name, '0' indicates channel does not exis """
+    """ get a channel number from a channel name, '0' indicates channel does not exist """
     dtv_server = get_dtv_connection(config)
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     for num in dtv_server.channel_numbers:
         this_channel = dtv_server.get_channel(channel_number=num)
         if this_channel.name == name:
@@ -250,7 +206,7 @@ def dtv_get_channel_number(config: dict, name: str):
 def dtv_create_new_channel(config: dict, name: str, start_at: int):
     """ create a new channel by finding an unused channel number """
     dtv_server = get_dtv_connection(config)
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     logger.debug("Looking for an available channel number, starting at: %d", start_at)
     lowest = start_at
     if dtv_server.channel_numbers:
@@ -285,7 +241,7 @@ def dtv_set_poster(config: dict, number: int, url: str):
 
 def dtv_update_programs(config: dict, number: int, collection: Collection, randomize: bool = True):
     """ update the programming on a channel """
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     logger.info("Updating programs for channel: %d", number)
     dtv_server = get_dtv_connection(config=config)
     plex_server = get_plex_connection(config=config)
@@ -328,8 +284,8 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
                 total_minutes += (prog.duration/60000)
 
         # make sure the channel will play for at least a number of days
-        min_days = get_minimum_days(col_section=collection.library_name,
-                                    col_name=collection.collection)
+        min_days = pmmdtv_config.get_minimum_days(col_section=collection.library_name,
+                                                  col_name=collection.collection)
         times_to_repeat = int((min_days*24*60)/total_minutes) + 1
 
         # remove existing content
@@ -342,8 +298,8 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
 
         # add fillers if requested
         chan.delete_all_filler_lists()
-        fillers = get_filler_lists(col_section=collection.library_name,
-                                   col_name=collection.collection)
+        fillers = pmmdtv_config.get_filler_lists(col_section=collection.library_name,
+                                                 col_name=collection.collection)
         for a_filler in fillers:
             logger.debug("Adding Filler List: %s", a_filler)
             filler_list = dtv_server.get_filler_list_by_name(a_filler)
@@ -363,61 +319,17 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
             chan.replicate(how_many_times=times_to_repeat)
 
         # set padding if requested
-        pad = get_pad_time(col_section=collection.library_name,
-                           col_name=collection.collection)
+        pad = pmmdtv_config.get_pad_time(col_section=collection.library_name,
+                                         col_name=collection.collection)
         if pad and pad != 0:
             logger.debug("Setting time padding to %d minutes", pad)
             chan.pad_times(start_every_x_minutes=pad)
         else:
             logger.debug("Padding is disabled")
 
-def get_pad_time(col_section: str, col_name: str):
-    """ Gets the padding time for the channel """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for pad setting
-    if 'pad' in config:
-        return config['pad']
-
-    # nothing was found
-    return None
-
-def get_filler_lists(col_section: str, col_name: str):
-    """ Gets the names of the filler lists """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for fillers setting in specific Channel
-    if 'fillers' in config:
-        return config['fillers']
-
-    # nothing was found
-    return []
-
-def get_random(col_section: str, col_name: str, default: bool = True):
-    """ Gets the randomize setting """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for fillers setting in specific Channel
-    if 'random' in config:
-        return config['random']
-
-    # nothing was found
-    return default
-
-def get_minimum_days(col_section: str, col_name: str, default: int = 0):
-    """ Gets the randomize setting """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for minimum_days setting in specific Channel
-    if 'minimum_days' in config:
-        return config['minimum_days']
-
-    # nothing was found
-    return default
-
 def send_discord(config: dict, message: str):
     """ send a discord webhook """
-    logger = get_logger()
+    logger = pmmdtv_logger.get_logger()
     if 'discord' not in config['dizquetv'] or 'url' not in config['dizquetv']['discord']:
         logger.debug("Discord webook not set, skipping notification")
 
@@ -438,33 +350,6 @@ def send_discord(config: dict, message: str):
         avatar_url=avatar
     )
 
-def get_collection_config(col_section: str, col_name: str):
-    """ Gets the configuration for a specific collection """
-    config = get_config()
-    default_config = {}
-    collection_config = {}
-
-    # Look for default values
-    if 'defaults' in config and \
-        col_section in config['defaults']:
-        default_config = config['defaults'][col_section]
-
-    if not default_config:
-        default_config = {}
-
-    # Not found, look for default fillers setting
-    if 'libraries' in config and \
-        col_section in config['libraries'] and \
-        col_name in config['libraries'][col_section]:
-        collection_config = config['libraries'][col_section][col_name]
-
-    if not collection_config:
-        collection_config = {}
-
-    default_config.update(collection_config)
-
-    return default_config
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(APP, host="0.0.0.0", log_config=LOGGING_CONFIG)
+    uvicorn.run(APP, host="0.0.0.0", port="8000", log_config=pmmdtv_logger.get_config())
