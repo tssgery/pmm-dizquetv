@@ -32,5 +32,6 @@ libraries:
       minimum_days: 31
       random: false
       pad: 2
+      channel_name: NBC - Friends
     Lost: 
       random: false

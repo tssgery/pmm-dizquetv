@@ -26,10 +26,6 @@ def get_config():
 
     return config
 
-def get_channel_name(section: str, name: str):
-    """ get a channel name from a section and collection name """
-    return "%s - %s" % (section, name)
-
 def get_pad_time(col_section: str, col_name: str):
     """ Gets the padding time for the channel """
     config = get_collection_config(col_section, col_name)
@@ -73,6 +69,17 @@ def get_minimum_days(col_section: str, col_name: str, default: int = 0):
 
     # nothing was found
     return default
+
+def get_channel_name(col_section: str, col_name: str):
+    """ Gets the channel name """
+    config = get_collection_config(col_section, col_name)
+
+    # Look for name setting in specific Channel
+    if 'channel_name' in config:
+        return config['channel_name']
+
+    # nothing was found
+    return "%s - %s" % (col_section, col_name)
 
 def get_collection_config(col_section: str, col_name: str):
     """ Gets the configuration for a specific collection """

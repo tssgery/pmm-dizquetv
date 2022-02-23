@@ -92,6 +92,7 @@ the following can be defined:
 |                  |      `random`: randomize the programs within the channel. Default is `true`                    |   
 |                  |      `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
 |                  |      `fillers`: a list of filler Lists already defined within DizqueTV                         |
+|                  |      `channel_name`: Allows a manually specified channel name. Default is `<plex_library> - <plex_collection>` |
 
 
 ### docker-compose

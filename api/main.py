@@ -36,13 +36,13 @@ APP.add_middleware(
 
 class StartRun(BaseModel):        # pylint: disable=too-few-public-methods
     """
-    Class to encapsulte the payload from Plex-Meta-Manager
+    Class to encapsulte the payload from Plex-Meta-Manager, run starting
     """
     start_time: Optional[str]
 
 class EndRun(BaseModel):        # pylint: disable=too-few-public-methods
     """
-    Class to encapsulte the payload from Plex-Meta-Manager
+    Class to encapsulte the payload from Plex-Meta-Manager, run ending
     """
     start_time: Optional[str]
     end_time: Optional[str]
@@ -57,7 +57,7 @@ class EndRun(BaseModel):        # pylint: disable=too-few-public-methods
 
 class Collection(BaseModel):        # pylint: disable=too-few-public-methods
     """
-    Class to encapsulte the payload from Plex-Meta-Manager
+    Class to encapsulte the payload from Plex-Meta-Manager, changes
     """
     server_name: Optional[str]
     library_name: Optional[str]
@@ -120,9 +120,9 @@ def hook_update(collection: Collection):
     col_section = collection.library_name
 
     # calculate the dizquetv channel name
-    channel_name = get_channel_name(
-        section=col_section,
-        name=col_name)
+    channel_name = pmmdtv_config.get_channel_name(
+        col_section=col_section,
+        col_name=col_name)
     logger.info("Channel name: %s", channel_name)
 
     # get the channel number, will return 0 if no channel exists
@@ -166,11 +166,6 @@ def hook_update(collection: Collection):
                  message="%s DizqueTV channel (name: %s, number %d)" % \
                  (operation, channel_name, channel))
     return Response(status_code=200)
-
-
-def get_channel_name(section: str, name: str):
-    """ get a channel name from a section and collection name """
-    return "%s - %s" % (section, name)
 
 
 def get_plex_connection(config: dict):

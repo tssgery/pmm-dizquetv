@@ -16,11 +16,12 @@ endif
 
 
 
-# Help target, prints usefule information
+# Help target, prints useful information
 help:
 	@echo
 	@echo "The following targets are commonly used:"
 	@echo
+	@echo "lint             - Runs pylint against python code"
 	@echo "docker           - Builds the container image"
 	@echo "push             - Pushes the built container to a target registry"
 	@echo
