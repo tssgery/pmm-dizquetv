@@ -81,6 +81,17 @@ def get_channel_name(col_section: str, col_name: str):
     # nothing was found
     return "%s - %s" % (col_section, col_name)
 
+def get_channel_group(col_section: str, col_name: str):
+    """ Gets the channel group """
+    config = get_collection_config(col_section, col_name)
+
+    # Look for name setting in specific Channel
+    if 'channel_group' in config:
+        return config['channel_group']
+
+    # nothing was found
+    return None
+
 def get_collection_config(col_section: str, col_name: str):
     """ Gets the configuration for a specific collection """
     config = get_config()

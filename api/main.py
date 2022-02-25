@@ -153,6 +153,15 @@ def hook_update(collection: Collection):
     randomize = pmmdtv_config.get_random(col_section=col_section,
                                          col_name=col_name)
 
+    # get the channel group and set it
+    channel_group = pmmdtv_config.get_channel_group(col_section=col_section,
+                                                    col_name=col_name)
+    if channel_group:
+        logger.debug("Setting Channel Group (number: %s) to: %s", channel, channel_group)
+        dtv_set_channel_group(config=config,
+                              number=channel,
+                              channel_group=channel_group)
+
     # now remove the existing content and reset it
     logger.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
     dtv_update_programs(number=channel, collection=collection, config=config, randomize=randomize)
@@ -233,6 +242,11 @@ def dtv_set_poster(config: dict, number: int, url: str):
     return dtv_server.update_channel(channel_number=number,
                                      icon=url)
 
+def dtv_set_channel_group(config: dict, number: int, channel_group: str):
+    """ sets the channel group """
+    dtv_server = get_dtv_connection(config=config)
+    return dtv_server.update_channel(channel_number=number,
+                                     groupTitle=channel_group)
 
 def dtv_update_programs(config: dict, number: int, collection: Collection, randomize: bool = True):
     """ update the programming on a channel """

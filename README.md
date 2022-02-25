@@ -30,11 +30,13 @@ defaults:
     pad: 10
     fillers:
       - Trailers
+    channel_group: Movies
   TV Shows:
     pad: 5
     minimum_days: 7
     fillers:
       - Commercials
+    channel_group: TV
 libraries:
   Movies:
     dizquetv_start: 100
@@ -48,6 +50,8 @@ libraries:
       minimum_days: 31
       random: false
       pad: 2
+      channel_name: NBC - Friends
+      channel_group: Must See TV
     Lost: 
       random: false
 ```
@@ -76,6 +80,7 @@ The `defaults` section allows for overriding the default values for each `librar
 |                  |      `random`: randomize the programs within the channel. Default is `true`                    |   
 |                  |      `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
 |                  |      `fillers`: a list of filler Lists already defined within DizqueTV                         |
+|                  |      `channel_group`: Default value for the Channel within DizqueTV                            |
 
 
 #### libraries
@@ -93,6 +98,7 @@ the following can be defined:
 |                  |      `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
 |                  |      `fillers`: a list of filler Lists already defined within DizqueTV                         |
 |                  |      `channel_name`: Allows a manually specified channel name. Default is `<plex_library> - <plex_collection>` |
+|                  |      `channel_group`: Value for the Channel within DizqueTV                                    |
 
 
 ### docker-compose

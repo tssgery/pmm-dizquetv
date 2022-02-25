@@ -14,11 +14,13 @@ defaults:
     pad: 10
     fillers:
       - Trailers
+    channel_group: Movies
   TV Shows:
     pad: 5
     minimum_days: 7
     fillers:
       - Commercials
+    channel_group: TV
 libraries:
   Movies:
     dizquetv_start: 100
@@ -33,5 +35,6 @@ libraries:
       random: false
       pad: 2
       channel_name: NBC - Friends
+      channel_group: Must See TV
     Lost: 
       random: false
