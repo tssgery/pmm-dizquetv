@@ -1,8 +1,12 @@
 # Base the image off the python image
-FROM python:3.8.12-buster
+FROM python:3.8.12-slim-buster
 
 # install some OS dependencies
-RUN apt-get update
+RUN apt-get update && \
+    apt-get upgrade -y
+
+# upgrade pip
+RUN python3 -m pip install --upgrade pip
 
 # install some python dependencies
 ADD requirements.txt /requirements.txt
