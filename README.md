@@ -7,6 +7,8 @@ It achieves this by exposing a webhook that can be configured within Plex-Meta-M
 to eb called whenever a Collection is created, modified, or deleted. When receiving the
 webhook call, pmm-dizquetv will utilize the DizqueTV API to keep channels in sync.
 
+<a href="https://www.buymeacoffee.com/tssgery" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
 ## Getting Started
 
 ### configuration
