@@ -36,5 +36,6 @@ libraries:
       pad: 2
       channel_name: NBC - Friends
       channel_group: Must See TV
-    Lost: 
+    Lost:
+      ignore: True
       random: false

@@ -1,5 +1,5 @@
 """
-Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
+Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 """
 
 # pylint: disable=E0401
@@ -11,6 +11,7 @@ import logging
 import yaml
 
 import pmmdtv_logger
+
 
 def get_config():
     """
@@ -26,6 +27,7 @@ def get_config():
 
     return config
 
+
 def get_pad_time(col_section: str, col_name: str):
     """ Gets the padding time for the channel """
     config = get_collection_config(col_section, col_name)
@@ -36,6 +38,7 @@ def get_pad_time(col_section: str, col_name: str):
 
     # nothing was found
     return None
+
 
 def get_filler_lists(col_section: str, col_name: str):
     """ Gets the names of the filler lists """
@@ -48,6 +51,7 @@ def get_filler_lists(col_section: str, col_name: str):
     # nothing was found
     return []
 
+
 def get_random(col_section: str, col_name: str, default: bool = True):
     """ Gets the randomize setting """
     config = get_collection_config(col_section, col_name)
@@ -58,6 +62,7 @@ def get_random(col_section: str, col_name: str, default: bool = True):
 
     # nothing was found
     return default
+
 
 def get_minimum_days(col_section: str, col_name: str, default: int = 0):
     """ Gets the randomize setting """
@@ -70,6 +75,7 @@ def get_minimum_days(col_section: str, col_name: str, default: int = 0):
     # nothing was found
     return default
 
+
 def get_channel_name(col_section: str, col_name: str):
     """ Gets the channel name """
     config = get_collection_config(col_section, col_name)
@@ -80,6 +86,7 @@ def get_channel_name(col_section: str, col_name: str):
 
     # nothing was found
     return "%s - %s" % (col_section, col_name)
+
 
 def get_channel_group(col_section: str, col_name: str):
     """ Gets the channel group """
@@ -92,6 +99,19 @@ def get_channel_group(col_section: str, col_name: str):
     # nothing was found
     return None
 
+
+def get_ignore_channel(col_section: str, col_name: str) -> bool:
+    """ Gets the ignore channel setting """
+    config = get_collection_config(col_section, col_name)
+
+    # Look for ignore setting in specific Channel
+    if 'ignore' in config:
+        return config['ignore']
+
+    # nothing was found
+    return False
+
+
 def get_collection_config(col_section: str, col_name: str):
     """ Gets the configuration for a specific collection """
     config = get_config()
@@ -100,7 +120,7 @@ def get_collection_config(col_section: str, col_name: str):
 
     # Look for default values
     if 'defaults' in config and \
-        col_section in config['defaults']:
+            col_section in config['defaults']:
         default_config = config['defaults'][col_section]
 
     if not default_config:
@@ -108,8 +128,8 @@ def get_collection_config(col_section: str, col_name: str):
 
     # Not found, look for default fillers setting
     if 'libraries' in config and \
-        col_section in config['libraries'] and \
-        col_name in config['libraries'][col_section]:
+            col_section in config['libraries'] and \
+            col_name in config['libraries'][col_section]:
         collection_config = config['libraries'][col_section][col_name]
 
     if not collection_config:

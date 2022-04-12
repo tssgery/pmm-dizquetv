@@ -125,6 +125,11 @@ def hook_update(collection: Collection):
     col_name = collection.collection
     col_section = collection.library_name
 
+    # check if the collection or library is marked to be ignored
+    if pmmdtv_config.get_ignore_channel(col_section=col_section, col_name=col_name):
+        logger.info("Ignoring collection: %s", col_name)
+        return Response(status_code=200)
+
     # calculate the dizquetv channel name
     channel_name = pmmdtv_config.get_channel_name(
         col_section=col_section,
@@ -340,7 +345,7 @@ def send_discord(config: dict, message: str):
     """ send a discord webhook """
     logger = pmmdtv_logger.get_logger()
     if 'discord' not in config['dizquetv'] or 'url' not in config['dizquetv']['discord']:
-        logger.debug("Discord webook not set, skipping notification")
+        logger.debug("Discord webhook not set, skipping notification")
 
     url = config['dizquetv']['discord']['url']
     username = 'pmm-dizquetv'

@@ -55,34 +55,36 @@ libraries:
       channel_name: NBC - Friends
       channel_group: Must See TV
     Lost: 
+      ignore: True
       random: false
 ```
 
 #### plex
-The `plex` section of the configutation points to the location and the authorization token for your plex instance
+The `plex` section of the configuration points to the location and the authorization token for your plex instance
 
 ##### dizquetv
-The `dizquetv` section points to your DizqueTV instances and provides a location for more gernal configuration values,
+The `dizquetv` section points to your DizqueTV instances and provides a location for more general configuration values,
 such as
 
-| value   | setting                                                              |
-|---------|----------------------------------------------------------------------|
-| debug   | enable pmm-dizquetv logging debug verbosity, default is `false`      |
-| discord | pmm-dizquetv can send notifications to discord, if settings applied  |
-|         |          `url`: Discord webhook url                                  |
-|         |          `username`: Username for discord, `pmm-dizquetv` is default |
-|         |          `avatar`: url of the avatar to display in Discord           |
+| value   | setting                                                             |
+|---------|---------------------------------------------------------------------|
+| debug   | enable pmm-dizquetv logging debug verbosity, default is `false`     |
+| discord | pmm-dizquetv can send notifications to discord, if settings applied |
+|         | `url`: Discord webhook url                                          |
+|         | `username`: Username for discord, `pmm-dizquetv` is default         |
+|         | `avatar`: url of the avatar to display in Discord                   |
 
 #### defaults
 The `defaults` section allows for overriding the default values for each `library`
 
-| value            | setting                                                                                        |
-|------------------|------------------------------------------------------------------------------------------------|
-| `library`        | Allows for customizing the defaults the specified library.                                     |
-|                  |      `random`: randomize the programs within the channel. Default is `true`                    |   
-|                  |      `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
-|                  |      `fillers`: a list of filler Lists already defined within DizqueTV                         |
-|                  |      `channel_group`: Default value for the Channel within DizqueTV                            |
+| value     | setting                                                                                   |
+|-----------|-------------------------------------------------------------------------------------------|
+| `library` | Allows for customizing the defaults the specified library.                                |
+|           | `random`: randomize the programs within the channel. Default is `true`                    |   
+|           | `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
+|           | `fillers`: a list of filler Lists already defined within DizqueTV                         |
+|           | `channel_group`: Default value for the Channel within DizqueTV                            |
+|           | `ignore`: Ignore any changes made to any collection in this library                       |
 
 
 #### libraries
@@ -91,16 +93,17 @@ The `libraries` section is not required but allows the override of default behav
 The children of the `libraries` section are the section names within Plex, and within those sections,
 the following can be defined:
 
-| value            | setting                                                                                        |
-|------------------|------------------------------------------------------------------------------------------------|
-| dizquetv_start   | Starting channel number within DizqueTV. By default the first unused number will be used.      |
-|                  |      If set, pmm-dizquetv will use the first unused number, greater than or equal to this.     |
-| `collection`     | Allows for customizing the channel configuration for the specified collection.                 |
-|                  |      `random`: randomize the programs within the channel. Default is `true`                    |   
-|                  |      `minimum_days`: repeat programming until a specific number of days is met. Default is '0' |
-|                  |      `fillers`: a list of filler Lists already defined within DizqueTV                         |
-|                  |      `channel_name`: Allows a manually specified channel name. Default is `<plex_library> - <plex_collection>` |
-|                  |      `channel_group`: Value for the Channel within DizqueTV                                    |
+| value          | setting                                                                                                   |
+|----------------|-----------------------------------------------------------------------------------------------------------|
+| dizquetv_start | Starting channel number within DizqueTV. By default the first unused number will be used.                 |
+|                | If set, pmm-dizquetv will use the first unused number, greater than or equal to this.                     |
+| `collection`   | Allows for customizing the channel configuration for the specified collection.                            |
+|                | `random`: randomize the programs within the channel. Default is `true`                                    |   
+|                | `minimum_days`: repeat programming until a specific number of days is met. Default is '0'                 |
+|                | `fillers`: a list of filler Lists already defined within DizqueTV                                         |
+|                | `channel_name`: Allows a manually specified channel name. Default is `<plex_library> - <plex_collection>` |
+|                | `channel_group`: Value for the Channel within DizqueTV                                                    |
+|                | `ignore`: Ignore any changes made to this collection                                                      |
 
 
 ### docker-compose
