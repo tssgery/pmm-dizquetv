@@ -1,5 +1,5 @@
 """
-Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
+Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 """
 
 # pylint: disable=E0401
@@ -7,15 +7,15 @@ Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
 # pylint: disable=R0914
 # pylint: disable=R0915
 
-from pprint import pformat
 import sys
+from pprint import pformat
 from typing import Optional
 
-from plexapi import server
 from discordwebhook import Discord
 from dizqueTV import API
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from plexapi import server
 from pydantic import BaseModel
 
 import pmmdtv_config
@@ -34,15 +34,17 @@ APP.add_middleware(
     expose_headers=["*"],
 )
 
-class StartRun(BaseModel):        # pylint: disable=too-few-public-methods
+
+class StartRun(BaseModel):  # pylint: disable=too-few-public-methods
     """
-    Class to encapsulte the payload from Plex-Meta-Manager, run starting
+    Class to encapsulate the payload from Plex-Meta-Manager, run starting
     """
     start_time: Optional[str]
 
-class EndRun(BaseModel):        # pylint: disable=too-few-public-methods
+
+class EndRun(BaseModel):  # pylint: disable=too-few-public-methods
     """
-    Class to encapsulte the payload from Plex-Meta-Manager, run ending
+    Class to encapsulate the payload from Plex-Meta-Manager, run ending
     """
     start_time: Optional[str]
     end_time: Optional[str]
@@ -51,13 +53,14 @@ class EndRun(BaseModel):        # pylint: disable=too-few-public-methods
     collections_modified: Optional[int]
     collections_deleted: Optional[int]
     items_added: Optional[int]
-    items_removesd: Optional[int]
+    items_removed: Optional[int]
     added_to_radarr: Optional[int]
     added_to_sonarr: Optional[int]
 
-class Collection(BaseModel):        # pylint: disable=too-few-public-methods
+
+class Collection(BaseModel):  # pylint: disable=too-few-public-methods
     """
-    Class to encapsulte the payload from Plex-Meta-Manager, changes
+    Class to encapsulate the payload from Plex-Meta-Manager, changes
     """
     server_name: Optional[str]
     library_name: Optional[str]
@@ -85,12 +88,14 @@ async def startup_event():
         logger.error("No PLEX Token is set")
         sys.exit(1)
 
+
 @APP.post("/start", status_code=200)
 def hook_start(start_time: StartRun):
     """ Webhook for when a PMM run starts """
     logger = pmmdtv_logger.get_logger()
     logger.info("PMM Run started at: %s", start_time.start_time)
     return Response(status_code=200)
+
 
 @APP.post("/end", status_code=200)
 def hook_end(end_time: EndRun):
@@ -99,9 +104,10 @@ def hook_end(end_time: EndRun):
     logger.info("PMM Run ended at: %s", end_time.end_time)
     return Response(status_code=200)
 
+
 @APP.post("/collection", status_code=200)
 def hook_update(collection: Collection):
-    """The actual webook, /collection, which gets all collection updates"""
+    """The actual webhook, /collection, which gets all collection updates"""
     logger = pmmdtv_logger.get_logger()
     logger.debug(pformat(collection))
 
@@ -119,6 +125,11 @@ def hook_update(collection: Collection):
     col_name = collection.collection
     col_section = collection.library_name
 
+    # check if the collection or library is marked to be ignored
+    if pmmdtv_config.get_ignore_channel(col_section=col_section, col_name=col_name):
+        logger.info("Ignoring collection: %s", col_name)
+        return Response(status_code=200)
+
     # calculate the dizquetv channel name
     channel_name = pmmdtv_config.get_channel_name(
         col_section=col_section,
@@ -135,18 +146,17 @@ def hook_update(collection: Collection):
         dtv_delete_channel(config=config, number=channel)
         send_discord(config=config,
                      message="Deleted DizqueTV channel (name: %s, number %d)" % \
-                     (channel_name, channel))
+                             (channel_name, channel))
         return Response(status_code=200)
 
     # if the channel does not exist and we were not asked to delete it
     if channel == 0 and not collection.deleted:
-        start_at = 1
         if 'libraries' in config and \
-           collection.library_name in config['libraries'] and \
-           'dizquetv_start' in config['libraries'][collection.library_name]:
+                collection.library_name in config['libraries'] and \
+                'dizquetv_start' in config['libraries'][collection.library_name]:
             start_at = config['libraries'][collection.library_name]['dizquetv_start']
         logger.debug("Creating channel (name: %s, number: %s)", channel_name, channel)
-        channel = dtv_create_new_channel(config=config, name=channel_name, start_at=start_at)
+        channel = dtv_create_new_channel(config=config, name=channel_name)
         operation = "Created"
 
     # determine if the channel contents should be randomized
@@ -173,7 +183,7 @@ def hook_update(collection: Collection):
 
     send_discord(config=config,
                  message="%s DizqueTV channel (name: %s, number %d)" % \
-                 (operation, channel_name, channel))
+                         (operation, channel_name, channel))
     return Response(status_code=200)
 
 
@@ -207,27 +217,19 @@ def dtv_get_channel_number(config: dict, name: str):
     return 0
 
 
-def dtv_create_new_channel(config: dict, name: str, start_at: int):
+def dtv_create_new_channel(config: dict, name: str):
     """ create a new channel by finding an unused channel number """
     dtv_server = get_dtv_connection(config)
     logger = pmmdtv_logger.get_logger()
-    logger.debug("Looking for an available channel number, starting at: %d", start_at)
-    lowest = start_at
-    if dtv_server.channel_numbers:
-        # build a range of integers that is 1 longer than the number of
-        # channels
-        max_count = len(dtv_server.channel_numbers) + 1
-        possible = range(start_at, start_at + max_count)
-        # find the lowest number of the differences in the sets
-        lowest = min(set(possible) - set(dtv_server.channel_numbers))
-
-    logger.debug("Lowest available channel number is %d", lowest)
+    logger.debug("Looking for the lowest available channel number")
+    lowest_available = dtv_server.lowest_available_channel_number
+    logger.debug("Lowest available channel number is %d", lowest_available)
     dtv_server.add_channel(programs=[],
-                           number=lowest,
+                           number=lowest_available,
                            name=name,
                            handle_errors=True)
 
-    return lowest
+    return lowest_available
 
 
 def dtv_delete_channel(config: dict, number: int):
@@ -242,11 +244,13 @@ def dtv_set_poster(config: dict, number: int, url: str):
     return dtv_server.update_channel(channel_number=number,
                                      icon=url)
 
+
 def dtv_set_channel_group(config: dict, number: int, channel_group: str):
     """ sets the channel group """
     dtv_server = get_dtv_connection(config=config)
     return dtv_server.update_channel(channel_number=number,
                                      groupTitle=channel_group)
+
 
 def dtv_update_programs(config: dict, number: int, collection: Collection, randomize: bool = True):
     """ update the programming on a channel """
@@ -264,12 +268,12 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
 
     all_items = []
 
-    # find all of the shows and movies in the collection
+    # find all shows and movies in the collection
     logger.debug("Gathering programs for channel")
     found_coll = plex_server.library.section(
         collection.library_name).search(
-            title=collection.collection,
-            libtype='collection')
+        title=collection.collection,
+        libtype='collection')
     if found_coll and len(found_coll) == 1:
         all_items.extend(found_coll[0].items())
 
@@ -284,18 +288,18 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
                 for episode in item.episodes():
                     if (hasattr(episode, "originallyAvailableAt") and \
                         episode.originallyAvailableAt) and (
-                                hasattr(episode, "duration") and episode.duration):
+                            hasattr(episode, "duration") and episode.duration):
                         final_programs.append(episode)
 
         # calculate the total duration of the programs
         for prog in final_programs:
             if (hasattr(prog, "duration") and prog.duration):
-                total_minutes += (prog.duration/60000)
+                total_minutes += (prog.duration / 60000)
 
         # make sure the channel will play for at least a number of days
         min_days = pmmdtv_config.get_minimum_days(col_section=collection.library_name,
                                                   col_name=collection.collection)
-        times_to_repeat = int((min_days*24*60)/total_minutes) + 1
+        times_to_repeat = int((min_days * 24 * 60) / total_minutes) + 1
 
         # remove existing content
         logger.debug("Removing exiting programs from channel: %d", number)
@@ -336,11 +340,12 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
         else:
             logger.debug("Padding is disabled")
 
+
 def send_discord(config: dict, message: str):
     """ send a discord webhook """
     logger = pmmdtv_logger.get_logger()
     if 'discord' not in config['dizquetv'] or 'url' not in config['dizquetv']['discord']:
-        logger.debug("Discord webook not set, skipping notification")
+        logger.debug("Discord webhook not set, skipping notification")
 
     url = config['dizquetv']['discord']['url']
     username = 'pmm-dizquetv'
@@ -359,6 +364,8 @@ def send_discord(config: dict, message: str):
         avatar_url=avatar
     )
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(APP, host="0.0.0.0", port="8000", log_config=pmmdtv_logger.get_config())

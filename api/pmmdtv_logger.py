@@ -1,5 +1,5 @@
 """
-Provides webook call for Plex-Meta-Manager, to create DizqueTV channels
+Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 """
 
 # pylint: disable=E0401
