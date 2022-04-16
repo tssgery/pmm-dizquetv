@@ -38,4 +38,4 @@ uvicorn==0.15.0
 uvloop==0.16.0
 watchgod==0.7
 websockets==10.0
-PlexAPI~=4.10.1
+PlexAPI~=4.9.1
