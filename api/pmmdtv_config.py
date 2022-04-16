@@ -6,6 +6,7 @@ Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 # pylint: disable=R0912
 # pylint: disable=R0914
 # pylint: disable=R0915
+# pylint: disable=consider-using-f-string
 
 import logging
 import yaml
@@ -18,7 +19,7 @@ def get_config():
     Get the configuration from the config file
     """
     logger = pmmdtv_logger.get_logger()
-    with open("/config/config.yml", "r") as config_file:
+    with open("/config/config.yml", "r", encoding="utf-8") as config_file:
         config = yaml.load(config_file, Loader=yaml.SafeLoader)
         if 'debug' in config['dizquetv'] and config['dizquetv']['debug']:
             logger.setLevel(logging.DEBUG)

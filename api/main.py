@@ -6,6 +6,7 @@ Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 # pylint: disable=R0912
 # pylint: disable=R0914
 # pylint: disable=R0915
+# pylint: disable=consider-using-f-string
 
 import sys
 from pprint import pformat
@@ -151,10 +152,6 @@ def hook_update(collection: Collection):
 
     # if the channel does not exist and we were not asked to delete it
     if channel == 0 and not collection.deleted:
-        if 'libraries' in config and \
-                collection.library_name in config['libraries'] and \
-                'dizquetv_start' in config['libraries'][collection.library_name]:
-            start_at = config['libraries'][collection.library_name]['dizquetv_start']
         logger.debug("Creating channel (name: %s, number: %s)", channel_name, channel)
         channel = dtv_create_new_channel(config=config, name=channel_name)
         operation = "Created"
@@ -282,7 +279,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
     if all_items:
         final_programs = []
         for item in all_items:
-            if item.type == 'movie' or item.type == 'episode':
+            if item.type in ('movie', 'episode'):
                 final_programs.append(item)
             elif item.type == 'show':
                 for episode in item.episodes():

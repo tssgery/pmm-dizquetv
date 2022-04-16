@@ -9,6 +9,13 @@ webhook call, pmm-dizquetv will utilize the DizqueTV API to keep channels in syn
 
 <a href="https://www.buymeacoffee.com/tssgery" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
+## Contributions
+Contributions to this project are always welcome. Pull requests to the `main` branch are checked with the following actions:
+* Pylint - Checks are run against python 3.8, 3.9, and 3.10
+* Docker build - Docker images are built to verify requirements and packaging
+
+Any failures in the actions will cause the PR to be un-mergable until resolved.
+
 ## Getting Started
 
 ### configuration
@@ -41,13 +48,11 @@ defaults:
     channel_group: TV
 libraries:
   Movies:
-    dizquetv_start: 100
     Pixar:
       pad: 5
       fillers:
         - Kid Safe Trailers
   TV Shows:
-    dizquetv_start: 200
     Friends:
       minimum_days: 31
       random: false
