@@ -41,13 +41,11 @@ defaults:
     channel_group: TV
 libraries:
   Movies:
-    dizquetv_start: 100
     Pixar:
       pad: 5
       fillers:
         - Kid Safe Trailers
   TV Shows:
-    dizquetv_start: 200
     Friends:
       minimum_days: 31
       random: false
