@@ -8,7 +8,7 @@ services:
       - PGID=1000
       - TZ=America/New_York
     volumes:
-      - /path/to/pmm-dizquetv/config:/config:ro
+      - /path/to/pmm-dizquetv/config.yml:/config/config.yml:ro
     restart: unless-stopped
     ports:
       - "8000:8000"

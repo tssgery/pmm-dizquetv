@@ -42,6 +42,6 @@ else
 endif
 
 lint: docker
-	docker run -it --rm --name $(IMAGENAME)-lint $(REGISTRY)/$(IMAGENAME):$(IMAGETAG) bash -c "apt update && apt install -y pylint3 && pylint3 -v /app/*.py"
+	docker run -it --rm --name $(IMAGENAME)-lint $(REGISTRY)/$(IMAGENAME):$(IMAGETAG) bash -c "apt update && apt install -y pylint3 && pylint -v /app/*.py"
 ## --
 

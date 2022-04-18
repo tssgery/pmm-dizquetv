@@ -6,7 +6,6 @@ Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 # pylint: disable=R0912
 # pylint: disable=R0914
 # pylint: disable=R0915
-# pylint: disable=consider-using-f-string
 
 import logging
 import yaml
@@ -86,7 +85,7 @@ def get_channel_name(col_section: str, col_name: str):
         return config['channel_name']
 
     # nothing was found
-    return "%s - %s" % (col_section, col_name)
+    return f"{col_section} - {col_name}"
 
 
 def get_channel_group(col_section: str, col_name: str):
