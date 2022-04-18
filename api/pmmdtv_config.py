@@ -2,10 +2,7 @@
 Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 """
 
-# pylint: disable=E0401
-# pylint: disable=R0912
-# pylint: disable=R0914
-# pylint: disable=R0915
+# pylint: disable=import-error
 
 import logging
 import yaml
