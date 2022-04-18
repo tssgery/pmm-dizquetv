@@ -2,11 +2,10 @@
 Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 """
 
-# pylint: disable=E0401
-# pylint: disable=R0912
-# pylint: disable=R0914
-# pylint: disable=R0915
-# pylint: disable=consider-using-f-string
+# pylint: disable=import-error
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-statements
 
 import sys
 from pprint import pformat
@@ -80,7 +79,7 @@ async def startup_event():
     """
     APP initialization code
     """
-    config = pmmdtv_config.get_config()
+    config = pmmdtv_config.get_config(validate=True)
     logger = pmmdtv_logger.get_logger()
     logger.info("Read configuration")
     logger.info("PLEX URL set to: %s", config['plex']['url'])
@@ -95,6 +94,8 @@ def hook_start(start_time: StartRun):
     """ Webhook for when a PMM run starts """
     logger = pmmdtv_logger.get_logger()
     logger.info("PMM Run started at: %s", start_time.start_time)
+    # Validate the configuration
+    _ = pmmdtv_config.get_config(validate=True)
     return Response(status_code=200)
 
 
@@ -146,8 +147,7 @@ def hook_update(collection: Collection):
         logger.debug("Deleting channel (name: %s, number: %s)", channel_name, channel)
         dtv_delete_channel(config=config, number=channel)
         send_discord(config=config,
-                     message="Deleted DizqueTV channel (name: %s, number %d)" % \
-                             (channel_name, channel))
+                     message=f"Deleted DizqueTV channel (name: {channel_name}, number {channel})")
         return Response(status_code=200)
 
     # if the channel does not exist and we were not asked to delete it
@@ -179,8 +179,7 @@ def hook_update(collection: Collection):
         dtv_set_poster(config=config, number=channel, url=collection.poster_url)
 
     send_discord(config=config,
-                 message="%s DizqueTV channel (name: %s, number %d)" % \
-                         (operation, channel_name, channel))
+                 message=f"{operation} DizqueTV channel (name: {channel_name}, number: {channel})")
     return Response(status_code=200)
 
 
@@ -325,7 +324,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
             chan.sort_programs_randomly()
             chan.replicate_and_shuffle(how_many_times=times_to_repeat)
         else:
-            logger.debug("Skipping the randmize of programs per config")
+            logger.debug("Skipping the randomize of programs per config")
             chan.replicate(how_many_times=times_to_repeat)
 
         # set padding if requested
