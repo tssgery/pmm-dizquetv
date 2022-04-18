@@ -79,7 +79,7 @@ async def startup_event():
     """
     APP initialization code
     """
-    config = pmmdtv_config.get_config()
+    config = pmmdtv_config.get_config(validate=True)
     logger = pmmdtv_logger.get_logger()
     logger.info("Read configuration")
     logger.info("PLEX URL set to: %s", config['plex']['url'])
@@ -94,6 +94,8 @@ def hook_start(start_time: StartRun):
     """ Webhook for when a PMM run starts """
     logger = pmmdtv_logger.get_logger()
     logger.info("PMM Run started at: %s", start_time.start_time)
+    # Validate the configuration
+    _ = pmmdtv_config.get_config(validate=True)
     return Response(status_code=200)
 
 

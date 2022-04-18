@@ -27,6 +27,7 @@ python-multipart==0.0.5
 PyYAML==5.4.1
 randomname==0.1.5
 requests==2.26.0
+schema==0.7.5
 six==1.16.0
 sniffio==1.2.0
 starlette==0.16.0
