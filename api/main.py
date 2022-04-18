@@ -324,7 +324,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
             chan.sort_programs_randomly()
             chan.replicate_and_shuffle(how_many_times=times_to_repeat)
         else:
-            logger.debug("Skipping the randmize of programs per config")
+            logger.debug("Skipping the randomize of programs per config")
             chan.replicate(how_many_times=times_to_repeat)
 
         # set padding if requested

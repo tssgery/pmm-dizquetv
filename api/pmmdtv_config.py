@@ -73,10 +73,9 @@ def validate_defaults_config(config, col_section):
     # validate 'defaults' schema
     try:
         config_schema_defaults.validate(config)
-        logger.info("Defaults for \"%s\" are valid.", col_section)
     except SchemaError as schema_error:
         for error in schema_error.autos:
-            logger.error("Within defaults for \"%s\": %s", col_section, error)
+            logger.warning("Within defaults for \"%s\": %s", col_section, error)
 
 def validate_channel_config(config, col_name):
     """
@@ -86,10 +85,9 @@ def validate_channel_config(config, col_name):
     # validate 'channel' schema
     try:
         config_schema_channel.validate(config)
-        logger.info("Channel settings for \"%s\" are valid.", col_name)
     except SchemaError as schema_error:
         for error in schema_error.autos:
-            logger.error("Channel settings for \"%s\": %s", col_name, error)
+            logger.warning("Channel settings for \"%s\": %s", col_name, error)
 
 def validate_config(config):
     """
@@ -99,18 +97,16 @@ def validate_config(config):
     # validate 'plex' schema
     try:
         config_schema_plex.validate(config['plex'])
-        logger.info("Plex configuration is valid.")
     except SchemaError as schema_error:
         for error in schema_error.autos:
-            logger.error("Within \"plex\" section: %s", error)
+            logger.warning("Within \"plex\" section: %s", error)
 
     # validate 'dizquetv' schema
     try:
         config_schema_dizquetv.validate(config['dizquetv'])
-        logger.info("Dizquetv configuration is valid.")
     except SchemaError as schema_error:
         for error in schema_error.autos:
-            logger.error("Within \"dizquetv\" section: %s", error)
+            logger.warning("Within \"dizquetv\" section: %s", error)
 
     # validate 'defaults' schema
     if config['defaults']:
