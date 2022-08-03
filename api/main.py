@@ -217,8 +217,12 @@ def dtv_create_new_channel(config: dict, name: str):
     """ create a new channel by finding an unused channel number """
     dtv_server = get_dtv_connection(config)
     logger = pmmdtv_logger.get_logger()
-    logger.debug("Looking for the lowest available channel number")
-    lowest_available = dtv_server.lowest_available_channel_number
+    # assume the lowest channel number is #1
+    lowest_available = 1
+    # if channels exist, get the lowest_available
+    if len(dtv_server.channel_numbers) > 0:
+        logger.debug("Looking for the lowest available channel number")
+        lowest_available = dtv_server.lowest_available_channel_number
     logger.debug("Lowest available channel number is %d", lowest_available)
     dtv_server.add_channel(programs=[],
                            number=lowest_available,
