@@ -111,7 +111,7 @@ def hook_end(end_time: EndRun):
 def hook_update(collection: Collection):
     """The actual webhook, /collection, which gets all collection updates"""
     logger = pmmdtv_logger.get_logger()
-    logger.debug(pformat(collection))
+    logger.debug("Collection Requested: %s", pformat(collection))
 
     config = pmmdtv_config.get_config()
 
@@ -127,16 +127,17 @@ def hook_update(collection: Collection):
     col_name = collection.collection
     col_section = collection.library_name
 
-    # check if the collection or library is marked to be ignored
-    if pmmdtv_config.get_ignore_channel(col_section=col_section, col_name=col_name):
-        logger.info("Ignoring collection: %s", col_name)
-        return Response(status_code=200)
+    channel_config = pmmdtv_config.get_collection_config(col_section=col_section,
+                                                         col_name=col_name)
+    logger.debug("Collection Config: %s", pformat(channel_config))
 
-    # calculate the dizquetv channel name
-    channel_name = pmmdtv_config.get_channel_name(
-        col_section=col_section,
-        col_name=col_name)
+    channel_name = channel_config['channel_name']
     logger.info("Channel name: %s", channel_name)
+
+    # check if the collection or library is marked to be ignored
+    if channel_config['ignore']:
+        logger.info("Ignoring collection: %s", channel_name)
+        return Response(status_code=200)
 
     # get the channel number, will return 0 if no channel exists
     channel = dtv_get_channel_number(config=config, name=channel_name)
@@ -156,22 +157,21 @@ def hook_update(collection: Collection):
         channel = dtv_create_new_channel(config=config, name=channel_name)
         operation = "Created"
 
-    # determine if the channel contents should be randomized
-    randomize = pmmdtv_config.get_random(col_section=col_section,
-                                         col_name=col_name)
-
     # get the channel group and set it
-    channel_group = pmmdtv_config.get_channel_group(col_section=col_section,
-                                                    col_name=col_name)
-    if channel_group:
-        logger.debug("Setting Channel Group (number: %s) to: %s", channel, channel_group)
+    if channel_config['channel_group']:
+        logger.debug("Setting Channel Group (number: %s) to: %s",
+                     channel,
+                     channel_config['channel_group'])
         dtv_set_channel_group(config=config,
                               number=channel,
-                              channel_group=channel_group)
+                              channel_group=channel_config['channel_group'])
 
     # now remove the existing content and reset it
     logger.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
-    dtv_update_programs(number=channel, collection=collection, config=config, randomize=randomize)
+    dtv_update_programs(number=channel,
+                        collection=collection,
+                        config=config,
+                        channel_config=channel_config)
 
     # update the poster
     if collection.poster_url:
@@ -252,7 +252,7 @@ def dtv_set_channel_group(config: dict, number: int, channel_group: str):
                                      groupTitle=channel_group)
 
 
-def dtv_update_programs(config: dict, number: int, collection: Collection, randomize: bool = True):
+def dtv_update_programs(config: dict, channel_config: dict, number: int, collection: Collection):
     """ update the programming on a channel """
     logger = pmmdtv_logger.get_logger()
     logger.info("Updating programs for channel: %d", number)
@@ -297,8 +297,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
                 total_minutes += (prog.duration / 60000)
 
         # make sure the channel will play for at least a number of days
-        min_days = pmmdtv_config.get_minimum_days(col_section=collection.library_name,
-                                                  col_name=collection.collection)
+        min_days = channel_config['minimum_days']
         times_to_repeat = int((min_days * 24 * 60) / total_minutes) + 1
 
         # remove existing content
@@ -311,8 +310,8 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
 
         # add fillers if requested
         chan.delete_all_filler_lists()
-        fillers = pmmdtv_config.get_filler_lists(col_section=collection.library_name,
-                                                 col_name=collection.collection)
+        fillers = channel_config['fillers']
+
         for a_filler in fillers:
             logger.debug("Adding Filler List: %s", a_filler)
             filler_list = dtv_server.get_filler_list_by_name(a_filler)
@@ -322,8 +321,9 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
                 logger.debug("Unable to find Filler List: %s", a_filler)
 
         logger.debug("Setting replicate count to %d", times_to_repeat)
+
         # sort things randomly
-        if randomize:
+        if channel_config['random']:
             logger.debug("Sortng programs randomly")
             chan.sort_programs_randomly()
             chan.replicate_and_shuffle(how_many_times=times_to_repeat)
@@ -332,8 +332,7 @@ def dtv_update_programs(config: dict, number: int, collection: Collection, rando
             chan.replicate(how_many_times=times_to_repeat)
 
         # set padding if requested
-        pad = pmmdtv_config.get_pad_time(col_section=collection.library_name,
-                                         col_name=collection.collection)
+        pad = channel_config['pad']
         if pad and pad != 0:
             logger.debug("Setting time padding to %d minutes", pad)
             chan.pad_times(start_every_x_minutes=pad)

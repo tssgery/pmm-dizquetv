@@ -121,90 +121,6 @@ def validate_config(config):
                 validate_channel_config(config=config['defaults'][section],
                     col_name=channel)
 
-def get_pad_time(col_section: str, col_name: str):
-    """ Gets the padding time for the channel """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for pad setting
-    if 'pad' in config:
-        return config['pad']
-
-    # nothing was found
-    return None
-
-
-def get_filler_lists(col_section: str, col_name: str):
-    """ Gets the names of the filler lists """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for fillers setting in specific Channel
-    if 'fillers' in config:
-        return config['fillers']
-
-    # nothing was found
-    return []
-
-
-def get_random(col_section: str, col_name: str, default: bool = True):
-    """ Gets the randomize setting """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for fillers setting in specific Channel
-    if 'random' in config:
-        return config['random']
-
-    # nothing was found
-    return default
-
-
-def get_minimum_days(col_section: str, col_name: str, default: int = 0):
-    """ Gets the randomize setting """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for minimum_days setting in specific Channel
-    if 'minimum_days' in config:
-        return config['minimum_days']
-
-    # nothing was found
-    return default
-
-
-def get_channel_name(col_section: str, col_name: str):
-    """ Gets the channel name """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for name setting in specific Channel
-    if 'channel_name' in config:
-        return config['channel_name']
-
-    # nothing was found
-    return f"{col_section} - {col_name}"
-
-
-def get_channel_group(col_section: str, col_name: str):
-    """ Gets the channel group """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for name setting in specific Channel
-    if 'channel_group' in config:
-        return config['channel_group']
-
-    # nothing was found
-    return None
-
-
-def get_ignore_channel(col_section: str, col_name: str) -> bool:
-    """ Gets the ignore channel setting """
-    config = get_collection_config(col_section, col_name)
-
-    # Look for ignore setting in specific Channel
-    if 'ignore' in config:
-        return config['ignore']
-
-    # nothing was found
-    return False
-
-
 def get_collection_config(col_section: str, col_name: str):
     """ Gets the configuration for a specific collection """
     config = get_config()
@@ -236,4 +152,29 @@ def get_collection_config(col_section: str, col_name: str):
 
     default_config.update(collection_config)
 
+    set_collection_defaults(col_name, default_config)
+
     return default_config
+
+def set_collection_defaults(channel_name: str, settings: dict):
+    """ takes a collection/channel config and makes sure default values are set """
+    if 'ignore' not in settings:
+        settings['ignore'] = False
+
+    if 'pad' not in settings:
+        settings['pad'] = 0
+
+    if 'channel_group' not in settings:
+        settings['channel_group'] = None
+
+    if 'minimum_days' not in settings:
+        settings['minimum_days'] = 0
+
+    if 'fillers' not in settings:
+        settings['fillers'] = []
+
+    if 'random' not in settings:
+        settings['random'] = True
+
+    if 'channel_name' not in settings:
+        settings['channel_name'] = channel_name
