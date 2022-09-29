@@ -152,7 +152,7 @@ def get_collection_config(col_section: str, col_name: str):
 
     default_config.update(collection_config)
 
-    set_collection_defaults(col_name, default_config)
+    set_collection_defaults(col_section + " - " + col_name, default_config)
 
     return default_config
 
