@@ -13,7 +13,7 @@ from typing import Optional
 
 from discordwebhook import Discord
 from dizqueTV import API
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from plexapi import server
 from pydantic import BaseModel
@@ -108,10 +108,17 @@ def hook_end(end_time: EndRun):
 
 
 @APP.post("/collection", status_code=200)
-def hook_update(collection: Collection):
+def hook_update(collection: Collection, background_tasks: BackgroundTasks):
     """The actual webhook, /collection, which gets all collection updates"""
     logger = pmmdtv_logger.get_logger()
     logger.debug("Collection Requested: %s", pformat(collection))
+    background_tasks.add_task(process_collection, collection)
+    return Response(status_code=200)
+
+def process_collection(collection: Collection):
+    """ background tasks to process the collection """
+    logger = pmmdtv_logger.get_logger()
+    logger.debug("Processing %s", collection.collection)
 
     config = pmmdtv_config.get_config()
 
@@ -122,7 +129,7 @@ def hook_update(collection: Collection):
     if collection.collection is None:
         logger.error("Null collection name was received")
         send_discord(config=config, message="ERROR: Null collection name was received")
-        return Response(status_code=400)
+        return
 
     col_name = collection.collection
     col_section = collection.library_name
@@ -137,7 +144,7 @@ def hook_update(collection: Collection):
     # check if the collection or library is marked to be ignored
     if channel_config['ignore']:
         logger.info("Ignoring collection: %s", channel_name)
-        return Response(status_code=200)
+        return
 
     # get the channel number, will return 0 if no channel exists
     channel = dtv_get_channel_number(config=config, name=channel_name)
@@ -149,7 +156,7 @@ def hook_update(collection: Collection):
         dtv_delete_channel(config=config, number=channel)
         send_discord(config=config,
                      message=f"Deleted DizqueTV channel (name: {channel_name}, number {channel})")
-        return Response(status_code=200)
+        return
 
     # if the channel does not exist and we were not asked to delete it
     if channel == 0 and not collection.deleted:
@@ -180,8 +187,8 @@ def hook_update(collection: Collection):
 
     send_discord(config=config,
                  message=f"{operation} DizqueTV channel (name: {channel_name}, number: {channel})")
-    return Response(status_code=200)
 
+    return
 
 def get_plex_connection(config: dict):
     """ get a plex connection """
