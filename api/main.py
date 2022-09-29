@@ -8,6 +8,7 @@ Provides webhook call for Plex-Meta-Manager, to create DizqueTV channels
 # pylint: disable=too-many-statements
 
 import sys
+from concurrent.futures.process import ProcessPoolExecutor
 from pprint import pformat
 from typing import Optional
 
@@ -79,6 +80,8 @@ async def startup_event():
     """
     APP initialization code
     """
+    APP.state.executor = ProcessPoolExecutor()
+
     config = pmmdtv_config.get_config(validate=True)
     logger = pmmdtv_logger.get_logger()
     logger.info("Read configuration")
@@ -87,6 +90,14 @@ async def startup_event():
     if not config['plex']['token']:
         logger.error("No PLEX Token is set")
         sys.exit(1)
+
+
+@APP.on_event("shutdown")
+async def on_shutdown():
+    """
+    APP termination code
+    """
+    APP.state.executor.shutdown()
 
 
 @APP.post("/start", status_code=200)
@@ -107,15 +118,15 @@ def hook_end(end_time: EndRun):
     return Response(status_code=200)
 
 
-@APP.post("/collection", status_code=200)
+@APP.post("/collection", status_code=202)
 async def hook_update(collection: Collection, background_tasks: BackgroundTasks):
     """The actual webhook, /collection, which gets all collection updates"""
     logger = pmmdtv_logger.get_logger()
     logger.debug("Collection Requested: %s", pformat(collection))
     # Process the collection in the background
     background_tasks.add_task(process_collection, collection)
-    #process_collection(collection)
-    return Response(status_code=200)
+    # process_collection(collection)
+    return Response(status_code=202)
 
 async def process_collection(collection: Collection):
     """ background tasks to process the collection """
