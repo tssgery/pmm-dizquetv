@@ -4,8 +4,12 @@ Small service that can synchronize Plex Collections, managed by Plex-Meta-Manger
 with DizqueTV channels.
 
 It achieves this by exposing a webhook that can be configured within Plex-Meta-Manager,
-to eb called whenever a Collection is created, modified, or deleted. When receiving the
+to be called whenever a Collection is created, modified, or deleted. When receiving the
 webhook call, pmm-dizquetv will utilize the DizqueTV API to keep channels in sync.
+
+Please note that collections are synced to DizqueTV in the background. This means that channels
+will continue to be updated after Plex-Meta-Manager has completed. Discord notification will be
+sent from pmm-dizquetv when each channel is completely updated.
 
 <a href="https://www.buymeacoffee.com/tssgery" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
