@@ -119,16 +119,16 @@ def hook_end(end_time: EndRun):
 
 
 @APP.post("/collection", status_code=202)
-async def hook_update(collection: Collection, background_tasks: BackgroundTasks):
+def hook_update(collection: Collection, background_tasks: BackgroundTasks):
     """The actual webhook, /collection, which gets all collection updates"""
     logger = pmmdtv_logger.get_logger()
     logger.debug("Collection Requested: %s", pformat(collection))
     # Process the collection in the background
     background_tasks.add_task(process_collection, collection)
-    # process_collection(collection)
+    # send back an ACCEPTED response
     return Response(status_code=202)
 
-async def process_collection(collection: Collection):
+def process_collection(collection: Collection):
     """ background tasks to process the collection """
     logger = pmmdtv_logger.get_logger()
     logger.debug("Processing %s", collection.collection)
@@ -275,7 +275,7 @@ def dtv_set_channel_group(config: dict, number: int, channel_group: str):
 def dtv_update_programs(config: dict, channel_config: dict, number: int, collection: Collection):
     """ update the programming on a channel """
     logger = pmmdtv_logger.get_logger()
-    logger.info("Updating programs for channel: %d", number)
+    logger.info("Channel %d: Updating programs", number)
     dtv_server = get_dtv_connection(config=config)
     plex_server = get_plex_connection(config=config)
 
@@ -289,7 +289,7 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
     all_items = []
 
     # find all shows and movies in the collection
-    logger.debug("Gathering programs for channel")
+    logger.debug("Channel %d: Gathering programs", number)
     found_coll = plex_server.library.section(
         collection.library_name).search(
         title=collection.collection,
@@ -315,49 +315,59 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
         for prog in final_programs:
             if (hasattr(prog, "duration") and prog.duration):
                 total_minutes += (prog.duration / 60000)
+        logger.debug("Channel %d: Program count: %d", number, len(final_programs))
+        logger.debug("Channel %d: Program duration: %d minutes", number, total_minutes)
 
         # make sure the channel will play for at least a number of days
         min_days = channel_config['minimum_days']
         times_to_repeat = int((min_days * 24 * 60) / total_minutes) + 1
 
         # remove existing content
-        logger.debug("Removing exiting programs from channel: %d", number)
+        logger.debug("Channel %d: Removing exiting programs", number)
         chan.delete_all_programs()
         # add new content
-        logger.debug("Adding new programs for channel: %d", number)
-        chan.add_programs(programs=final_programs,
-                          plex_server=plex_server)
+        logger.debug("Channel %d: Adding new programs", number)
+        # add items in chunks of 100 to allow the event loop some time
+        for i in range(0, len(final_programs), 100):
+            # taking the slice pulls up to, but not including the end number
+            logger.debug("Channel %d: Adding programs, %d-%d (total: %d)",
+                         number,
+                         i,
+                         i+99,
+                         len(final_programs))
+            chan.add_programs(programs=final_programs[i:i+100],
+                              plex_server=plex_server)
 
         # add fillers if requested
         chan.delete_all_filler_lists()
         fillers = channel_config['fillers']
 
         for a_filler in fillers:
-            logger.debug("Adding Filler List: %s", a_filler)
+            logger.debug("Channel %d: Adding Filler List: %s", number, a_filler)
             filler_list = dtv_server.get_filler_list_by_name(a_filler)
             if filler_list:
                 chan.add_filler_list(filler_list=filler_list)
             else:
-                logger.debug("Unable to find Filler List: %s", a_filler)
+                logger.debug("Channel %d: Unable to find Filler List: %s", number, a_filler)
 
-        logger.debug("Setting replicate count to %d", times_to_repeat)
+        logger.debug("Channel %d: Setting replicate count to %d", number, times_to_repeat)
 
         # sort things randomly
         if channel_config['random']:
-            logger.debug("Sortng programs randomly")
+            logger.debug("Channel %d: Sortng programs randomly", number)
             chan.sort_programs_randomly()
             chan.replicate_and_shuffle(how_many_times=times_to_repeat)
         else:
-            logger.debug("Skipping the randomize of programs per config")
+            logger.debug("Channel %d: Skipping the randomize of programs per config", number)
             chan.replicate(how_many_times=times_to_repeat)
 
         # set padding if requested
         pad = channel_config['pad']
         if pad and pad != 0:
-            logger.debug("Setting time padding to %d minutes", pad)
+            logger.debug("Channel %d: Setting time padding to %d minutes", number, pad)
             chan.pad_times(start_every_x_minutes=pad)
         else:
-            logger.debug("Padding is disabled")
+            logger.debug("Channel %d: Padding is disabled", number)
 
 
 def send_discord(config: dict, message: str):
