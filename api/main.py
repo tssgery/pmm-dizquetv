@@ -156,7 +156,7 @@ def process_collection(collection: Collection):
 
     # check if the collection or library is marked to be ignored
     if channel_config['ignore']:
-        logger.info("Ignoring collection: %s", channel_name)
+        logger.info("Ignoring collection: %s, because the 'ignore' flag was set", channel_name)
         return
 
     # get the channel number, will return 0 if no channel exists

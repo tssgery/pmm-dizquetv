@@ -21,6 +21,7 @@ config_schema_plex = Schema({
 config_schema_dizquetv = Schema({
     "url": str,
     Optional("debug"): bool,
+    Optional("ignore"): bool,
     Optional("discord"): {
         Optional("url"): str,
         Optional("username"): str,
@@ -36,6 +37,7 @@ config_schema_defaults = Schema({
     Optional("minimum_days"): int,
     Optional("random"): bool,
     Optional("dizquetv_start"): int,
+    Optional("ignore"): bool,
 })
 
 # configuration for channels section
@@ -46,6 +48,7 @@ config_schema_channel = Schema({
     Optional("minimum_days"): int,
     Optional("channel_name"): str,
     Optional("random"): bool,
+    Optional("ignore"): bool,
 })
 
 def get_config(validate: bool = False):
@@ -60,10 +63,32 @@ def get_config(validate: bool = False):
         else:
             logger.setLevel(logging.INFO)
 
+    # make sure the deafult is set for ignore
+    if 'ignore' not in config['dizquetv']:
+        config['dizquetv']['ignore'] = False
+
     if validate:
         validate_config(config)
 
     return config
+
+def get_library_defaults(col_section: str):
+    """ get the configuration for the library defaults """
+    system_config = get_config(validate=False)
+    logger = pmmdtv_logger.get_logger()
+    logger.debug("Getting defaults for library: %s", col_section)
+
+    library_config = {}
+
+    if 'defaults' in system_config and col_section in system_config['defaults']:
+        library_config = system_config['defaults'][col_section]
+
+    # set 'ignore' in library_config:
+    if 'ignore' not in library_config:
+        library_config['ignore'] = system_config['dizquetv']['ignore']
+
+    return library_config
+
 
 def validate_defaults_config(config, col_section):
     """
@@ -128,9 +153,7 @@ def get_collection_config(col_section: str, col_name: str):
     collection_config = {}
 
     # Look for default values
-    if 'defaults' in config and \
-            col_section in config['defaults']:
-        default_config = config['defaults'][col_section]
+    default_config = get_library_defaults(col_section)
 
     if not default_config:
         default_config = {}
@@ -158,6 +181,7 @@ def get_collection_config(col_section: str, col_name: str):
 
 def set_collection_defaults(channel_name: str, settings: dict):
     """ takes a collection/channel config and makes sure default values are set """
+
     if 'ignore' not in settings:
         settings['ignore'] = False
 
