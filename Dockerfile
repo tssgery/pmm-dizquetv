@@ -1,5 +1,5 @@
 # Base the image off the python image
-FROM python:3.10.4-slim-bullseye
+FROM python:3.10-slim-bullseye
 
 # install some OS dependencies
 RUN apt-get update && \
