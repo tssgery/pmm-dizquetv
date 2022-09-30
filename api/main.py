@@ -332,8 +332,8 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
             # taking the slice pulls up to, but not including the end number
             logger.debug("Channel %d: Adding programs, %d-%d (total: %d)",
                          number,
-                         i,
-                         i+99,
+                         i+1,
+                         i+100,
                          len(final_programs))
             chan.add_programs(programs=final_programs[i:i+100],
                               plex_server=plex_server)
@@ -354,12 +354,12 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
 
         # sort things randomly
         if channel_config['random']:
-            logger.debug("Channel %d: Sortng programs randomly", number)
-            chan.sort_programs_randomly()
-            chan.replicate_and_shuffle(how_many_times=times_to_repeat)
+            logger.debug("Channel %d: Sorting programs randomly", number)
+            chan.cyclical_shuffle()
         else:
             logger.debug("Channel %d: Skipping the randomize of programs per config", number)
-            chan.replicate(how_many_times=times_to_repeat)
+
+        chan.replicate(how_many_times=times_to_repeat)
 
         # set padding if requested
         pad = channel_config['pad']
