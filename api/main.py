@@ -25,6 +25,10 @@ import pmmdtv_logger
 # create the API
 APP = FastAPI()
 
+# globals for reporting purposes
+# igmored collections
+ignored_collections = []
+
 # allow calls from anywhere
 APP.add_middleware(
     CORSMiddleware,
@@ -105,6 +109,8 @@ def hook_start(start_time: StartRun):
     """ Webhook for when a PMM run starts """
     logger = pmmdtv_logger.get_logger()
     logger.info("PMM Run started at: %s", start_time.start_time)
+    # reset the list of ignored collections
+    ignored_collections = []
     # Validate the configuration
     _ = pmmdtv_config.get_config(validate=True)
     return Response(status_code=200)
@@ -115,6 +121,16 @@ def hook_end(end_time: EndRun):
     """ Webhook for when a PMM run ends """
     logger = pmmdtv_logger.get_logger()
     logger.info("PMM Run ended at: %s", end_time.end_time)
+    message = "Plex-Meta-Manager run complete, "
+    message += "collections/channels will continue in the background."
+
+    if ignored_collections:
+        message += "\nThe following collections were updated but "
+        message += "ignored due to pmm-dizquetv configuration:\n"
+        for this_coll in ignored_collections:
+            message += "- " + this_coll + "\n"
+
+    logger.info(message)
     return Response(status_code=200)
 
 
@@ -123,9 +139,21 @@ def hook_update(collection: Collection, background_tasks: BackgroundTasks):
     """The actual webhook, /collection, which gets all collection updates"""
     logger = pmmdtv_logger.get_logger()
     logger.debug("Collection Requested: %s", pformat(collection))
-    # Process the collection in the background
-    background_tasks.add_task(process_collection, collection)
-    # send back an ACCEPTED response
+
+    # get the collection config and see if we should ignore this one
+    channel_config = pmmdtv_config.get_collection_config(col_section=collection.library_name,
+                                                         col_name=collection.collection)
+    full_name = collection.library_name + " - " + collection.collection
+
+    # check if the collection or library is marked to be ignored
+    if channel_config['ignore']:
+        ignored_collections.append(full_name)
+        logger.info("Ignoring collection: %s, because the 'ignore' flag was set", full_name)
+    else:
+        # Process the collection in the background
+        background_tasks.add_task(process_collection, collection)
+
+    # send back an ACCEPTED response, regardless of if it is ignored
     return Response(status_code=202)
 
 def process_collection(collection: Collection):
@@ -153,11 +181,6 @@ def process_collection(collection: Collection):
 
     channel_name = channel_config['channel_name']
     logger.info("Channel name: %s", channel_name)
-
-    # check if the collection or library is marked to be ignored
-    if channel_config['ignore']:
-        logger.info("Ignoring collection: %s", channel_name)
-        return
 
     # get the channel number, will return 0 if no channel exists
     channel = dtv_get_channel_number(config=config, name=channel_name)

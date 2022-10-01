@@ -34,6 +34,7 @@ plex:
 dizquetv:
   url: "INSERT_DIZQUETV_URL_HERE:8000"
   debug: True
+  ignore: False
   discord:
     url: "INSERT_DISCORD_WEBHOOK_URL_HERE"
     username: "pmm-dizquetv"
@@ -50,6 +51,7 @@ defaults:
     fillers:
       - Commercials
     channel_group: TV
+    ignore: True
 libraries:
   Movies:
     Pixar:
@@ -75,13 +77,17 @@ The `plex` section of the configuration points to the location and the authoriza
 The `dizquetv` section points to your DizqueTV instances and provides a location for more general configuration values,
 such as
 
-| value   | setting                                                             |
-|---------|---------------------------------------------------------------------|
-| debug   | enable pmm-dizquetv logging debug verbosity, default is `false`     |
-| discord | pmm-dizquetv can send notifications to discord, if settings applied |
-|         | `url`: Discord webhook url                                          |
-|         | `username`: Username for discord, `pmm-dizquetv` is default         |
-|         | `avatar`: url of the avatar to display in Discord                   |
+| value    | setting                                                             |
+|----------|---------------------------------------------------------------------|
+| debug    | enable pmm-dizquetv logging debug verbosity, default is `false`     |
+| discord  | pmm-dizquetv can send notifications to discord, if settings applied |
+|          | `url`: Discord webhook url                                          |
+|          | `username`: Username for discord, `pmm-dizquetv` is default         |
+|          | `avatar`: url of the avatar to display in Discord                   |
+| ignore   | If set to `False`, all collections will be synced to DizqueTV       |
+|          | If set to `True`, only collection where `ignore` is overridden      |
+|          | will be synced                                                      |
+|          | Default value is `False`                                             |
 
 #### defaults
 The `defaults` section allows for overriding the default values for each `library`
@@ -94,6 +100,7 @@ The `defaults` section allows for overriding the default values for each `librar
 |           | `fillers`: a list of filler Lists already defined within DizqueTV                         |
 |           | `channel_group`: Default value for the Channel within DizqueTV                            |
 |           | `ignore`: Ignore any changes made to any collection in this library                       |
+|           | `ignore`: Overrides the `ignore` setting for all collections in this specific library     |
 
 
 #### libraries
@@ -112,7 +119,7 @@ the following can be defined:
 |                | `fillers`: a list of filler Lists already defined within DizqueTV                                         |
 |                | `channel_name`: Allows a manually specified channel name. Default is `<plex_library> - <plex_collection>` |
 |                | `channel_group`: Value for the Channel within DizqueTV                                                    |
-|                | `ignore`: Ignore any changes made to this collection                                                      |
+|                | `ignore`: Ignore any changes made to this collection, overrides the library and system settings           |
 
 
 ### docker-compose
