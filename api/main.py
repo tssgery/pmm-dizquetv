@@ -12,7 +12,6 @@ from concurrent.futures.process import ProcessPoolExecutor
 from pprint import pformat
 from typing import Optional
 
-from discordwebhook import Discord
 from dizqueTV import API
 from fastapi import FastAPI, Response, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +19,7 @@ from plexapi import server
 from pydantic import BaseModel
 
 import pmmdtv_config
+import pmmdtv_discord
 import pmmdtv_logger
 
 # create the API
@@ -169,7 +169,6 @@ def process_collection(collection: Collection):
     # make sure a collection name was provided
     if collection.collection is None:
         logger.error("Null collection name was received")
-        send_discord(config=config, message="ERROR: Null collection name was received")
         return
 
     col_name = collection.collection
@@ -190,8 +189,10 @@ def process_collection(collection: Collection):
     if collection.deleted:
         logger.debug("Deleting channel (name: %s, number: %s)", channel_name, channel)
         dtv_delete_channel(config=config, number=channel)
-        send_discord(config=config,
-                     message=f"Deleted DizqueTV channel (name: {channel_name}, number {channel})")
+        pmmdtv_discord.send_discord(config=config,
+                                    message="Channel Deleted",
+                                    channel_name=channel_name,
+                                    channel_number=channel)
         return
 
     # if the channel does not exist and we were not asked to delete it
@@ -211,18 +212,22 @@ def process_collection(collection: Collection):
 
     # now remove the existing content and reset it
     logger.debug("Updating channel (name: %s, number: %s)", channel_name, channel)
-    dtv_update_programs(number=channel,
-                        collection=collection,
-                        config=config,
-                        channel_config=channel_config)
+    progs, minutes = dtv_update_programs(number=channel,
+                                         collection=collection,
+                                         config=config,
+                                         channel_config=channel_config)
 
     # update the poster
     if collection.poster_url:
         logger.debug("Updating channel %s with poster at %s", channel_name, collection.poster_url)
         dtv_set_poster(config=config, number=channel, url=collection.poster_url)
 
-    send_discord(config=config,
-                 message=f"{operation} DizqueTV channel (name: {channel_name}, number: {channel})")
+    pmmdtv_discord.send_discord(config=config,
+                                message=f"Channel {operation}",
+                                channel_name=channel_name,
+                                channel_number=channel,
+                                channel_programs=progs,
+                                channel_playtime=minutes)
 
     return
 
@@ -307,7 +312,7 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
 
     if chan == 0:
         logger.error("Could not find DizqueTV channel for number: %d", number)
-        return
+        return 0,0
 
     all_items = []
 
@@ -317,6 +322,7 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
         collection.library_name).search(
         title=collection.collection,
         libtype='collection')
+
     if found_coll and len(found_coll) == 1:
         all_items.extend(found_coll[0].items())
 
@@ -338,8 +344,9 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
         for prog in final_programs:
             if (hasattr(prog, "duration") and prog.duration):
                 total_minutes += (prog.duration / 60000)
-        logger.debug("Channel %d: Program count: %d", number, len(final_programs))
-        logger.debug("Channel %d: Program duration: %d minutes", number, total_minutes)
+
+        channel_programs = len(final_programs)
+        channel_playtime = total_minutes
 
         # make sure the channel will play for at least a number of days
         min_days = channel_config['minimum_days']
@@ -392,30 +399,9 @@ def dtv_update_programs(config: dict, channel_config: dict, number: int, collect
         else:
             logger.debug("Channel %d: Padding is disabled", number)
 
+        return channel_programs, channel_playtime
 
-def send_discord(config: dict, message: str):
-    """ send a discord webhook """
-    logger = pmmdtv_logger.get_logger()
-    if 'discord' not in config['dizquetv'] or 'url' not in config['dizquetv']['discord']:
-        logger.debug("Discord webhook not set, skipping notification")
-
-    url = config['dizquetv']['discord']['url']
-    username = 'pmm-dizquetv'
-    if 'username' in config['dizquetv']['discord']:
-        username = config['dizquetv']['discord']['username']
-    avatar = 'https://github.com/tssgery/pmm-dizquetv/raw/main/avatar/discord-avatar.png'
-    if 'avatar' in config['dizquetv']['discord']:
-        avatar = config['dizquetv']['discord']['avatar']
-
-    logger.debug("Sending Discord webhook")
-
-    discord = Discord(url=url)
-    discord.post(
-        content=message,
-        username=username,
-        avatar_url=avatar
-    )
-
+    return 0,0
 
 if __name__ == "__main__":
     import uvicorn
