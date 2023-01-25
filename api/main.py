@@ -76,8 +76,14 @@ class Collection(BaseModel):  # pylint: disable=too-few-public-methods
     background: Optional[str]
     background_url: Optional[str]
     created: Optional[bool]
-    deleted: Optional[bool]
 
+class DeleteCollection(BaseModel):  # pylint: disable=too-few-public-methods
+    """
+    Class to encapsulate the payload from Plex-Meta-Manager, delete webhook
+    """
+    server_name: Optional[str]
+    library_name: Optional[str]
+    message: Optional[str]
 
 @APP.on_event("startup")
 async def startup_event():
@@ -94,7 +100,6 @@ async def startup_event():
     if not config['plex']['token']:
         logger.error("No PLEX Token is set")
         sys.exit(1)
-
 
 @APP.on_event("shutdown")
 async def on_shutdown():
@@ -156,6 +161,43 @@ def hook_update(collection: Collection, background_tasks: BackgroundTasks):
     # send back an ACCEPTED response, regardless of if it is ignored
     return Response(status_code=202)
 
+@APP.post("/delete", status_code=200)
+def hook_delete(collection: DeleteCollection):
+    """ Webhook for when a PMM collection is deleted """
+    logger = pmmdtv_logger.get_logger()
+    logger.info("Collection deleted: %s", pformat(collection))
+
+    config = pmmdtv_config.get_config()
+
+    # get the collection config and see if we should ignore this one
+    channel_config = pmmdtv_config.get_collection_config(col_section=collection.library_name,
+                                                         col_name=collection.message)
+    channel_name = collection.library_name + " - " + collection.message
+
+    # get the channel number, will return 0 if no channel exists
+    channel = dtv_get_channel_number(config=config, name=channel_name)
+    if channel == 0:
+        # channel not found
+        logger.info("Ignoring deletion of channel: %s, because it was not found in dizquetv",
+                    channel_name)
+        return Response(status_code=200)
+
+    # check if the collection or library is marked to be ignored
+    if channel_config['ignore']:
+
+        logger.info("Ignoring deletion of channel: %s, because the 'ignore' flag was set",
+                    channel_name)
+        return Response(status_code=200)
+
+    # handle collection deletion
+    logger.debug("Deleting channel (name: %s, number: %s)", channel_name, channel)
+    dtv_delete_channel(config=config, number=channel)
+    pmmdtv_discord.send_discord(config=config,
+                                message="Channel Deleted",
+                                channel_name=channel_name,
+                                channel_number=channel)
+    return Response(status_code=200)
+
 def process_collection(collection: Collection):
     """ background tasks to process the collection """
     logger = pmmdtv_logger.get_logger()
@@ -185,18 +227,8 @@ def process_collection(collection: Collection):
     channel = dtv_get_channel_number(config=config, name=channel_name)
     logger.info("Channel number: %d", channel)
 
-    # handle collection deletion
-    if collection.deleted:
-        logger.debug("Deleting channel (name: %s, number: %s)", channel_name, channel)
-        dtv_delete_channel(config=config, number=channel)
-        pmmdtv_discord.send_discord(config=config,
-                                    message="Channel Deleted",
-                                    channel_name=channel_name,
-                                    channel_number=channel)
-        return
-
-    # if the channel does not exist and we were not asked to delete it
-    if channel == 0 and not collection.deleted:
+    # if the channel does not exist
+    if channel == 0:
         logger.debug("Creating channel (name: %s, number: %s)", channel_name, channel)
         channel = dtv_create_new_channel(config=config, name=channel_name)
         operation = "Created"
