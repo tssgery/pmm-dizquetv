@@ -169,6 +169,15 @@ def hook_delete(collection: DeleteCollection):
 
     config = pmmdtv_config.get_config()
 
+    # make sure a collection name was provided
+    if collection.message is None:
+        logger.error("Null collection name was received")
+        return
+    # make sure a library was provided
+    if collection.library_name is None:
+        logger.error("Null library name was received")
+        return
+
     # get the collection config and see if we should ignore this one
     channel_config = pmmdtv_config.get_collection_config(col_section=collection.library_name,
                                                          col_name=collection.message)

@@ -143,9 +143,11 @@ services:
 ```
 
 ### Enabling within Plex-Meta-Manager
-Enabling pmm-dizquetv is simple, just add it as a target for the `changes` webhook within PMM.
+Enabling pmm-dizquetv is simple, just add it as a target for the `changes` and `delete` webhook within PMM.
+PMM will invoke the `changes` webhook when collections are created or modified, and the `delete` webhook when a collection is deleted.
+Consult the Plex-Meta-Manager documentation for more specifics.
 
-For example, the following snippet from the PMM config would send notify both notifiarr and pmm-dizquetv of changes
+For example, the following snippet from the PMM config would send notify both notifiarr and pmm-dizquetv of changes and deletions
 
 ```
 webhooks:
@@ -155,4 +157,7 @@ webhooks:
   changes:
     - notifiarr
     - http://pmm-dizquetv:8000/collection
-```lint
+  delete:
+    - notifiarr
+    - http://pmm-dizquetv:8000/delete
+```
